@@ -1,0 +1,40 @@
+# Values for docker compose interpolation (the ${...} in the compose files).
+# The compose files hand each container only the values it needs, by name.
+#
+# Values of the form <<generate:...>> are replaced by random values when the
+# instance is generated (hooks/post_gen_project.py); <<generate:chars:48:aA0>>
+# means 48 characters with at least one lowercase letter, uppercase letter and
+# digit. An existing .env is never overwritten.
+
+# Public host of Keycloak, as routed by the proxy. Must match the issuer the
+# services expect: {{ cookiecutter.ifdd_oidc_realm }}
+IFDD_KEYCLOAK_HOST={{ cookiecutter.ifdd_keycloak_host }}
+
+# Port on 127.0.0.1 for local development (docker-compose-development.yml).
+IFDD_KEYCLOAK_DEV_PORT={{ cookiecutter.ifdd_keycloak_dev_port }}
+
+# Temporary admin of the master realm, created on the first start only.
+# Keycloak marks it as temporary: create a permanent admin, then delete it.
+IFDD_KEYCLOAK_ADMIN_USER={{ cookiecutter.ifdd_keycloak_admin_user }}
+IFDD_KEYCLOAK_ADMIN_PASSWORD=<<generate:chars:32:aA0>>
+
+# PostgreSQL password of the user keycloak. Set once: the database keeps the
+# password it was created with; changing it here alone locks Keycloak out.
+IFDD_KEYCLOAK_DB_PASSWORD=<<generate:chars:40:aA0>>
+
+# Client secrets, read by the realm import on the first start only
+# (realm/import/*-realm.json). Copy each one to the service that uses the client.
+# Afterwards Keycloak keeps its own copy; rotate in the admin console.
+# {{ cookiecutter.ifdd_keycloak_api_client_id }}: scripts
+IFDD_KEYCLOAK_API_CLIENT_SECRET=<<generate:chars:48:aA0>>
+# {{ cookiecutter.ifdd_keycloak_ct_client_id }}: ifdd-ct, IFDD_CT_OIDC_CLIENT_SECRET
+IFDD_KEYCLOAK_CT_CLIENT_SECRET=<<generate:chars:48:aA0>>
+# {{ cookiecutter.ifdd_keycloak_useradmin_client_id }}: scripts that create users (keycloak_add_user.py of
+# the meta repository); the id is here for those scripts, the realm takes it
+# from the cookiecutter variable.
+IFDD_KEYCLOAK_USERADMIN_CLIENT_ID={{ cookiecutter.ifdd_keycloak_useradmin_client_id }}
+IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET=<<generate:chars:48:aA0>>
+# {{ cookiecutter.ifdd_ts_oidc_client_id }}: ifdd-ts (Grafana)
+IFDD_KEYCLOAK_TS_CLIENT_SECRET=<<generate:chars:48:aA0>>
+# {{ cookiecutter.ifdd_proxy_oidc_client_id }}: ifdd-proxy, secrets/oauth2_proxy_client_secret
+IFDD_KEYCLOAK_PROXY_CLIENT_SECRET=<<generate:chars:48:aA0>>

@@ -1,0 +1,53 @@
+# Values of the realm import file, written by cruft from the cookiecutter
+# variables. After a change: python3 realm/build_realm.py, then commit both.
+# The realm file only takes effect when Keycloak creates the realm (first
+# start); see README.
+
+[realm]
+name = "{{ cookiecutter.ifdd_keycloak_realm }}"
+# Selects ifdd_realm/builtin/keycloak-<version>.json; follows the image tag.
+keycloak_version = "{{ cookiecutter.ifdd_keycloak_image.split(':')[-1] }}"
+
+[roles]
+# Node roles exist as realm roles and as client roles of the backend client;
+# ifdd-be and ifdd-ui check the client roles (resource_access).
+public = "{{ cookiecutter.ifdd_keycloak_role_public }}"          # signed in, no further rights
+nodes_read = "{{ cookiecutter.ifdd_be_role_nodes_read }}"        # also the scope adding the audience
+nodes_write = "{{ cookiecutter.ifdd_keycloak_role_nodes_write }}"
+nodes_priv = "{{ cookiecutter.ifdd_keycloak_role_nodes_priv }}"
+# Context pattern for every domain context below the root (client role of the
+# backend client only; ifdd-be reads patterns from resource_access).
+context_root = "{{ cookiecutter.ifdd_context_root }}"
+grafana_admin = "{{ cookiecutter.ifdd_ts_role_admin }}"
+grafana_editor = "{{ cookiecutter.ifdd_ts_role_editor }}"
+grafana_viewer = "{{ cookiecutter.ifdd_ts_role_viewer }}"
+
+[groups]
+wf_admins = "{{ cookiecutter.ifdd_keycloak_wf_admin_group }}"   # must equal ifdd_wf_sso_group of ifdd-wf
+nodes_readers = "{{ cookiecutter.ifdd_keycloak_group_nodes_readers }}"        # read nodes
+nodes_writers = "{{ cookiecutter.ifdd_keycloak_group_nodes_writers }}"        # read and write nodes
+nodes_privileged = "{{ cookiecutter.ifdd_keycloak_group_nodes_privileged }}"  # privileged and read
+
+[clients.backend]                  # public: ifdd-ui login, audience of ifdd-be
+id = "{{ cookiecutter.ifdd_oidc_backend_client_id }}"
+audience = "{{ cookiecutter.ifdd_oidc_jwks_audience }}"
+ui_url = "{{ cookiecutter.ifdd_ui_url }}"
+be_url = "{{ cookiecutter.ifdd_be_url }}"
+
+[clients.api]                      # scripts
+id = "{{ cookiecutter.ifdd_keycloak_api_client_id }}"
+
+[clients.ct]                       # ifdd-ct, client credentials
+id = "{{ cookiecutter.ifdd_keycloak_ct_client_id }}"
+
+[clients.useradmin]                # scripts that create users and add them to groups
+id = "{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}"
+
+[clients.ts]                       # Grafana of ifdd-ts
+id = "{{ cookiecutter.ifdd_ts_oidc_client_id }}"
+host = "{{ cookiecutter.ifdd_ts_host }}"
+
+[clients.proxy]                    # oauth2-proxy of ifdd-proxy
+id = "{{ cookiecutter.ifdd_proxy_oidc_client_id }}"
+# Hosts whose services sit behind the login gate (redirect /oauth2/callback).
+gate_hosts = {{ cookiecutter.ifdd_keycloak_proxy_gate_hosts.split(',') | map('trim') | list | tojson }}

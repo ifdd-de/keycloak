@@ -1,0 +1,32 @@
+name: template-test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install cookiecutter cruft pytest pyyaml
+      # docker compose is part of the runner image; the compose tests use it.
+      - run: pytest -q tests
+      - name: Documentation (docs/en, docs/de) matches and builds
+        run: |
+          pip install -r tests/docs/requirements.txt
+          for fixture in tests/fixtures/*.yaml; do
+            out="$RUNNER_TEMP/docs-check/$(basename "$fixture" .yaml)"
+            cookiecutter --no-input --config-file "$fixture" --output-dir "$out" .
+            instance=$(find "$out" -mindepth 1 -maxdepth 1 -type d | head -1)
+            python tests/check_docs.py "$instance" --prefix ifdd-keycloak-
+            # realm/OVERVIEW.md as a Sphinx page, without tests/docs/conf.py
+            # (its suppressed ref warnings are not needed here)
+            page="$RUNNER_TEMP/realm-overview/$(basename "$fixture" .yaml)"
+            mkdir -p "$page"
+            cp "$instance/realm/OVERVIEW.md" "$page/index.md"
+            python -m sphinx -C -D extensions=myst_parser -W -q -b html "$page" "$page/_build"
+          done

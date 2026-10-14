@@ -1,0 +1,10 @@
+# Local configuration with generated secrets, created from dotenv.dist
+.env
+.env.*
+
+.idea/
+__pycache__/
+.pytest_cache/
+
+# Local builds of the documentation (docs/en, docs/de)
+docs/_build/

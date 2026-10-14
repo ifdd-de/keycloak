@@ -1,0 +1,11 @@
+# Values as in the organisation's cookiecutter_all.yaml (2026-10-02).
+default_context:
+  ifdd_keycloak_prj_name: Keycloak
+  ifdd_oidc_realm: "https://id/realms/ifddtest"
+  ifdd_oidc_backend_client_id: ifddtest
+  ifdd_oidc_jwks_audience: ifddtest
+  ifdd_be_url: https://rest
+  ifdd_ui_url: https://ui
+  ifdd_be_role_nodes_read: "ifdd_nodes_ro"
+  ifdd_ts_host: ts
+  ifdd_wf_host: wf

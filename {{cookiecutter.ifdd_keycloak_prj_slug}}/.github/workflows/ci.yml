@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install cruft
+      - name: template drift
+        run: cruft check || cruft diff
+      - name: realm file is generated from values.toml and up to date
+        run: python3 realm/build_realm.py --check
+      - name: compose files are valid
+        run: |
+          # dummy values; the real .env is not in git
+          sed -E 's/<<generate:[^>]*>>/ci-dummy-value/' dotenv.dist > .env
+          docker compose -f docker-compose-production.yml config -q
+          docker compose -f docker-compose-development.yml config -q

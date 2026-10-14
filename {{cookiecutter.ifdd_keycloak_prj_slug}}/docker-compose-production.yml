@@ -1,0 +1,101 @@
+# Keycloak with its own PostgreSQL, behind an ifdd-de/proxy instance on the
+# network {{ cookiecutter.ifdd_proxy_network }} (TLS ends at the proxy).
+#
+# The realm in ./realm/import is imported on the first start only; once the realm
+# exists, Keycloak skips the import and the database is authoritative.
+#
+#   docker compose -f docker-compose-production.yml up -d
+
+services:
+  postgres:
+    image: "{{ cookiecutter.ifdd_keycloak_postgres_image }}"
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: "${IFDD_KEYCLOAK_DB_PASSWORD:?set in .env}"
+    volumes:
+      # From PostgreSQL 18 on, the image keeps its data in a versioned
+      # subdirectory of /var/lib/postgresql.
+      - postgres-data:/var/lib/postgresql
+    networks:
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d keycloak -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - "no-new-privileges:true"
+    restart: always
+
+  keycloak:
+    image: "{{ cookiecutter.ifdd_keycloak_image }}"
+    # Not optimized: Keycloak builds itself on start (slower start, no own image).
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: "${IFDD_KEYCLOAK_DB_PASSWORD:?set in .env}"
+      # TLS ends at the proxy: plain HTTP inside, public URL from the hostname,
+      # client address and scheme from the X-Forwarded-* headers of Traefik.
+      KC_HOSTNAME: "https://${IFDD_KEYCLOAK_HOST:?set in .env}"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      # Adds the database check to /health/ready (503 while the DB is gone).
+      KC_METRICS_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${IFDD_KEYCLOAK_ADMIN_USER:?set in .env}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${IFDD_KEYCLOAK_ADMIN_PASSWORD:?set in .env}"
+      # Read by the placeholders in the realm file. An unset variable would
+      # not fail the import but become the literal secret, hence the :?
+      IFDD_KEYCLOAK_API_CLIENT_SECRET: "${IFDD_KEYCLOAK_API_CLIENT_SECRET:?set in .env}"
+      IFDD_KEYCLOAK_CT_CLIENT_SECRET: "${IFDD_KEYCLOAK_CT_CLIENT_SECRET:?set in .env}"
+      IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET: "${IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET:?set in .env}"
+      IFDD_KEYCLOAK_TS_CLIENT_SECRET: "${IFDD_KEYCLOAK_TS_CLIENT_SECRET:?set in .env}"
+      IFDD_KEYCLOAK_PROXY_CLIENT_SECRET: "${IFDD_KEYCLOAK_PROXY_CLIENT_SECRET:?set in .env}"
+    volumes:
+      - ./realm/import:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Readiness on the management port 9000 (KC_HEALTH_ENABLED). The image has
+      # no curl, so bash speaks HTTP itself; $$ keeps compose from interpolating.
+      test:
+        - "CMD"
+        - "bash"
+        - "-c"
+        - "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && IFS= read -r status <&3 && [[ $$status == 'HTTP/1.1 200'* ]]"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # The first start builds Keycloak and imports the realm.
+      start_period: 180s
+    networks:
+      - db
+      - ext-proxy-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{ cookiecutter.ifdd_keycloak_prj_slug }}.rule=Host(`${IFDD_KEYCLOAK_HOST:?set in .env}`)"
+      - "traefik.http.services.{{ cookiecutter.ifdd_keycloak_prj_slug }}.loadbalancer.server.port=8080"
+      # Security headers from the proxy (ifdd-de/proxy, headers.yml). No csp-*:
+      # Keycloak serves its admin console and login pages and sets its own CSP,
+      # which the strict csp-api would break.
+      - "traefik.http.routers.{{ cookiecutter.ifdd_keycloak_prj_slug }}.middlewares=security-headers@file"
+      - "traefik.docker.network={{ cookiecutter.ifdd_proxy_network }}"
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    restart: always
+
+volumes:
+  postgres-data:
+
+networks:
+  db:
+  ext-proxy-net:
+    name: {{ cookiecutter.ifdd_proxy_network }}
+    external: true

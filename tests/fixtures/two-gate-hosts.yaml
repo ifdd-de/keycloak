@@ -1,0 +1,4 @@
+default_context:
+  ifdd_oidc_realm: "https://keycloak.example.org/realms/gatetest"
+  ifdd_wf_host: wf.example.org
+  ifdd_keycloak_proxy_gate_hosts: "wf.example.org, ts.example.org"

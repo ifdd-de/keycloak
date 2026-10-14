@@ -1,0 +1,35 @@
+name: template-update-test
+
+# Generates an instance from the previous commit and updates it to this one,
+# as an instance repository would do with cruft update.
+on:
+  push:
+  pull_request:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install cookiecutter cruft
+      - name: create from the previous commit, update to this one
+        run: |
+          prev=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+          git config --global user.email ci@example.org
+          git config --global user.name ci
+          cruft create --no-input --checkout "$prev" \
+            --config-file tests/fixtures/ifddtest.yaml \
+            --output-dir /tmp/out "file://$PWD"
+          cd /tmp/out/keycloak
+          python3 - <<'PY'
+          import json; p=".cruft.json"; d=json.load(open(p)); d["skip"]=[".env"]; json.dump(d,open(p,"w"),indent=2)
+          PY
+          git init -q && git add -A && git commit -qm instance
+          cruft update --skip-apply-ask --checkout "$GITHUB_SHA"
+          if find . -name '*.rej' | grep -q .; then find . -name '*.rej' -exec cat {} +; exit 1; fi
+          cruft check --checkout "$GITHUB_SHA"
