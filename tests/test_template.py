@@ -167,6 +167,14 @@ def test_overview_lists_every_client_role_and_group(instance):
     assert all(f"`{n}`" in text for n in names)
 
 
+def test_no_byte_code_in_the_instance(instance):
+    """cruft update renders twice and runs the hook each time: byte code with time
+    stamps in realm/ifdd_realm/__pycache__ would look like a change of the instance."""
+    assert not list(instance.rglob("__pycache__"))
+    assert build(instance).returncode == 0
+    assert not list(instance.rglob("__pycache__"))
+
+
 def test_check_notices_an_edited_overview(instance):
     overview = instance / "realm" / "OVERVIEW.md"
     overview.write_text(overview.read_text() + "edited by hand\n")
