@@ -24,6 +24,7 @@ des Realms in der Admin-Konsole.
 | die Anmeldeseite sieht aus wie das Standard-Theme von Keycloak | der Realm wurde vor dem Theme importiert, oder `themes/ifdd` ist nicht eingehängt | das Theme in der Admin-Konsole setzen ({ref}`ifdd-keycloak-realm`); die Volumes der Compose-Datei prüfen |
 | eine Änderung am Theme wirkt nicht | Keycloak puffert Themes außerhalb von `start-dev` | Keycloak neu starten |
 | `build_realm.py` bricht mit `realm '...' is named in ...` ab | zwei Werte-Dateien nennen denselben Realm | jedem weiteren Realm einen eigenen `name` geben |
+| das erste `cruft update` nach dem Template vom 2026-10-20 meldet Patch-Fehler zu `realm/ifdd_realm/__pycache__/*.pyc` | das ältere Template schrieb Bytecode, wenn sein Hook `build_realm.py` ausführte; er unterscheidet sich bei jedem Rendern | dieses Update als `PYTHONDONTWRITEBYTECODE=1 cruft update` ausführen oder vorher `realm/ifdd_realm/__pycache__` löschen; spätere Updates brauchen nichts |
 | ein Client-Secret aus `.env` funktioniert nicht | der Realm wurde mit einem anderen Wert importiert, oder das Secret wurde in Keycloak rotiert | das Secret aus der Admin-Konsole nehmen (Client, „Credentials“) |
 
 ## Anmeldungen

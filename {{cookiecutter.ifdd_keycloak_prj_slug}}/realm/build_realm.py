@@ -20,6 +20,10 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+# No __pycache__ next to the model: the post-generation hook runs this script
+# in every rendering of cruft update, and byte code (with time stamps) would
+# show up there as a change of the instance.
+sys.dont_write_bytecode = True
 
 from ifdd_realm import builtin, overview, realm, validate, values
 
