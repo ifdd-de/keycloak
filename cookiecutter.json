@@ -37,6 +37,7 @@
     ".github",
     "tests",
     "realm/build_realm.py",
-    "realm/ifdd_realm"
+    "realm/ifdd_realm",
+    "themes"
   ]
 }

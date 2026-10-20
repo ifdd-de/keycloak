@@ -1,10 +1,14 @@
 # Values of the realm import file, written by cruft from the cookiecutter
 # variables. After a change: python3 realm/build_realm.py, then commit both.
+# Further realms: copy this file (e.g. values_aa.toml), change it and run
+# python3 realm/build_realm.py --values realm/values_aa.toml (see README).
 # The realm file only takes effect when Keycloak creates the realm (first
 # start); see README.
 
 [realm]
 name = "{{ cookiecutter.ifdd_keycloak_realm }}"
+# Title of the login pages (displayName of the realm).
+display_name = "{{ cookiecutter.ifdd_keycloak_prj_name }}"
 # Selects ifdd_realm/builtin/keycloak-<version>.json; follows the image tag.
 keycloak_version = "{{ cookiecutter.ifdd_keycloak_image.split(':')[-1] }}"
 

@@ -16,6 +16,9 @@ Template-Variable ist.
 | `realm/build_realm.py`, `realm/ifdd_realm/` | das Skript und sein Modell |
 | `realm/import/{{ cookiecutter.ifdd_keycloak_realm }}-realm.json` | erzeugte Importdatei, nur lesend in Keycloak eingebunden |
 | `realm/OVERVIEW.md` | erzeugt: der Realm als Tabellen |
+| `realm/values_*.toml` | optional: Werte weiterer Realms, von Hand geschrieben |
+| `realm/OVERVIEW-<realm>.md` | erzeugt: die Übersicht eines weiteren Realms |
+| `themes/ifdd/` | Login-Theme des Realms, nur lesend in Keycloak eingehängt |
 
 ## Umgebung (`.env`)
 

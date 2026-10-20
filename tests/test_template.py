@@ -73,12 +73,79 @@ def test_check_notices_a_changed_value(instance):
     assert "ifdd-ct-2" in realm_of(instance)[0].read_text()
 
 
-def test_renaming_the_realm_removes_the_old_file(instance):
+def test_renaming_the_realm_keeps_the_old_file(instance):
+    """Files of other realms are never removed; the script only points them out."""
     values = instance / "realm" / "values.toml"
     old = realm_of(instance)[0]
     values.write_text(re.sub(r'(?m)^name = ".*"$', 'name = "renamed"', values.read_text()))
-    assert build(instance).returncode == 0
-    assert not old.exists() and realm_of(instance)[0].name == "renamed-realm.json"
+    result = build(instance)
+    assert result.returncode == 0
+    assert old.exists() and (old.parent / "renamed-realm.json").is_file()
+    assert old.name in result.stdout                       # the note names it
+    assert build(instance, "--check").returncode == 0      # not an error any more
+
+
+def further_realm(instance, name, title="Another realm"):
+    """A copy of values.toml for a further realm, as the README describes it."""
+    source = (instance / "realm" / "values.toml").read_text()
+    text = re.sub(r'(?m)^name = ".*"$', f'name = "{name}"', source)
+    text = re.sub(r'(?m)^display_name = ".*"$', f'display_name = "{title}"', text)
+    path = instance / "realm" / f"values_{name}.toml"
+    path.write_text(text)
+    return path
+
+
+def test_several_values_files(instance):
+    own_file, _ = realm_of(instance)
+    own_overview = instance / "realm" / "OVERVIEW.md"
+    before = (own_file.read_text(), own_overview.read_text())
+    further_realm(instance, "aa")
+    further_realm(instance, "dd", title="Realm D & D")
+    result = build(instance, "--values", "realm/values_aa.toml", "realm/values_dd.toml")
+    assert result.returncode == 0, result.stderr
+    out = instance / "realm" / "import"
+    aa = json.loads((out / "aa-realm.json").read_text())
+    dd = json.loads((out / "dd-realm.json").read_text())
+    assert aa["realm"] == "aa" and dd["realm"] == "dd"
+    assert dd["displayName"] == "Realm D & D" and dd["displayNameHtml"] == "Realm D &amp; D"
+    assert "`realm/values_dd.toml`" in (instance / "realm" / "OVERVIEW-dd.md").read_text()
+    assert (instance / "realm" / "OVERVIEW-aa.md").is_file()
+    # the realm of values.toml and its overview are untouched
+    assert (own_file.read_text(), own_overview.read_text()) == before
+    assert build(instance, "--check").returncode == 0
+    assert build(instance, "--check", "--values", "realm/values_aa.toml",
+                 "realm/values_dd.toml").returncode == 0
+
+
+def test_check_of_a_further_realm_notices_a_change(instance):
+    path = further_realm(instance, "aa")
+    assert build(instance, "--values", "realm/values_aa.toml").returncode == 0
+    path.write_text(path.read_text().replace('id = "ifdd-ct"', 'id = "ifdd-ct-2"'))
+    assert build(instance, "--check", "--values", "realm/values_aa.toml").returncode == 1
+
+
+def test_one_realm_name_in_two_values_files_fails(instance):
+    further_realm(instance, "aa")
+    (instance / "realm" / "values_bb.toml").write_text(
+        (instance / "realm" / "values_aa.toml").read_text())
+    result = build(instance, "--values", "realm/values_aa.toml", "realm/values_bb.toml")
+    assert result.returncode != 0 and "'aa'" in result.stderr
+    assert not (instance / "realm" / "import" / "aa-realm.json").exists()
+
+
+def test_overview_option_needs_one_values_file(instance):
+    further_realm(instance, "aa")
+    result = build(instance, "--overview", "x.md", "--values", "realm/values.toml",
+                   "realm/values_aa.toml")
+    assert result.returncode != 0 and "needs exactly one values file" in result.stderr
+
+
+def test_values_file_without_display_name_still_loads(instance):
+    path = further_realm(instance, "aa")
+    path.write_text(re.sub(r'(?m)^display_name = .*\n', "", path.read_text()))
+    assert build(instance, "--values", "realm/values_aa.toml").returncode == 0
+    realm = json.loads((instance / "realm" / "import" / "aa-realm.json").read_text())
+    assert "displayName" not in realm and "displayNameHtml" not in realm
 
 
 @pytest.mark.parametrize("kind", ["json", "md"])
@@ -112,6 +179,32 @@ def test_unknown_keycloak_version_fails(tmp_path):
 
 
 # --- content ------------------------------------------------------------------
+
+def test_login_theme_and_title(instance, fixture_name):
+    realm = realm_of(instance)[1]
+    name = yaml.safe_load(fixture_name.read_text())["default_context"].get(
+        "ifdd_keycloak_prj_name", "IFDD Keycloak")
+    assert realm["loginTheme"] == "ifdd"
+    assert realm["displayName"] == name
+
+
+def test_theme_is_copied_unrendered(instance):
+    theme = instance / "themes" / "ifdd" / "login"
+    for rel in ("theme.properties", "resources/css/ifdd.css"):
+        assert (theme / rel).read_bytes() == \
+            (ROOT / "{{cookiecutter.ifdd_keycloak_prj_slug}}" / "themes" / "ifdd" / "login" / rel).read_bytes()
+    props = dict(line.split("=", 1) for line in (theme / "theme.properties").read_text().splitlines()
+                 if line and not line.startswith("#"))
+    assert props["parent"] == "keycloak.v2"
+    assert props["styles"].split() == ["css/styles.css", "css/ifdd.css"]   # keeps the parent's styles
+    css = (theme / "resources" / "css" / "ifdd.css").read_text()
+    assert "url(" not in css and "@import" not in css        # nothing external (CSP)
+
+
+@pytest.mark.parametrize("name", ["docker-compose-production.yml", "docker-compose-development.yml"])
+def test_theme_is_mounted(instance, name):
+    volumes = yaml.safe_load((instance / name).read_text())["services"]["keycloak"]["volumes"]
+    assert "./themes/ifdd:/opt/keycloak/themes/ifdd:ro" in volumes
 
 def test_content(instance):
     realm = realm_of(instance)[1]
@@ -329,6 +422,8 @@ def test_compose_is_valid(instance, name):
     {"ifdd_context_root": "ifdd"},             # one label: not a pattern
     {"ifdd_context_root": "IFDD.de"},
     {"ifdd_context_root": "ifdd_x.de"},
+    # title in a TOML string; with an own slug, so that only the name check applies
+    {"ifdd_keycloak_prj_name": "IFDD\\Keycloak", "ifdd_keycloak_prj_slug": "kc"},
 ])
 def test_pre_hook_rejects(tmp_path, extra):
     with pytest.raises(FailedHookException):

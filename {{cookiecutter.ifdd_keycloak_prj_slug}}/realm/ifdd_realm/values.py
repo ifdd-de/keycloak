@@ -1,7 +1,7 @@
 """The values of realm/values.toml, read into typed data classes.
 
 values.toml is written by cruft from the cookiecutter variables; edit it and
-rebuild to change the realm file.
+rebuild to change the realm file. Copies of it describe further realms.
 """
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +32,7 @@ class Groups:
 @dataclass(frozen=True, kw_only=True)
 class Values:
     realm: str
+    display_name: str     # title of the login pages; empty: none
     keycloak_version: str
     roles: Roles
     groups: Groups
@@ -56,6 +57,8 @@ def load(path: Path) -> Values:
     clients = raw["clients"]
     return Values(
         realm=raw["realm"]["name"],
+        # Optional, so that values files written before it existed still load.
+        display_name=raw["realm"].get("display_name", ""),
         keycloak_version=raw["realm"]["keycloak_version"],
         roles=Roles(**raw["roles"]),
         groups=Groups(**raw["groups"]),

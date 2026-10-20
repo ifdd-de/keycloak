@@ -16,6 +16,9 @@ variable.
 | `realm/build_realm.py`, `realm/ifdd_realm/` | the script and its model |
 | `realm/import/{{ cookiecutter.ifdd_keycloak_realm }}-realm.json` | generated import file, mounted read-only into Keycloak |
 | `realm/OVERVIEW.md` | generated: the realm as tables |
+| `realm/values_*.toml` | optional: values of further realms, written by hand |
+| `realm/OVERVIEW-<realm>.md` | generated: the overview of a further realm |
+| `themes/ifdd/` | login theme of the realm, mounted read-only into Keycloak |
 
 ## Environment (`.env`)
 

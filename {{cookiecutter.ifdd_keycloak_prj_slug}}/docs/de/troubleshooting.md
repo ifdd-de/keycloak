@@ -21,6 +21,9 @@ des Realms in der Admin-Konsole.
 |---|---|---|
 | eine Änderung in `values.toml` oder nach `cruft update` wirkt nicht | der Import läuft nur, solange der Realm nicht existiert | die Änderung in der Admin-Konsole vornehmen ({ref}`ifdd-keycloak-operations`) |
 | `realm/build_realm.py --check` scheitert in der CI | `values.toml` oder `realm/ifdd_realm/` geändert, ohne neu zu erzeugen | `python3 realm/build_realm.py` ausführen, die erzeugten Dateien committen |
+| die Anmeldeseite sieht aus wie das Standard-Theme von Keycloak | der Realm wurde vor dem Theme importiert, oder `themes/ifdd` ist nicht eingehängt | das Theme in der Admin-Konsole setzen ({ref}`ifdd-keycloak-realm`); die Volumes der Compose-Datei prüfen |
+| eine Änderung am Theme wirkt nicht | Keycloak puffert Themes außerhalb von `start-dev` | Keycloak neu starten |
+| `build_realm.py` bricht mit `realm '...' is named in ...` ab | zwei Werte-Dateien nennen denselben Realm | jedem weiteren Realm einen eigenen `name` geben |
 | ein Client-Secret aus `.env` funktioniert nicht | der Realm wurde mit einem anderen Wert importiert, oder das Secret wurde in Keycloak rotiert | das Secret aus der Admin-Konsole nehmen (Client, „Credentials“) |
 
 ## Anmeldungen

@@ -1,0 +1,29 @@
+/*
+ * IFDD login theme, loaded after the styles of keycloak.v2.
+ * Plain background instead of the Keycloak artwork, a neutral line above the
+ * card and the realm's display name as a quiet heading. Only PatternFly
+ * variables are used, so the dark mode of keycloak.v2 keeps working.
+ * Local styles only: Keycloak's CSP allows no external sources.
+ */
+
+:root {
+    --keycloak-card-top-color: var(--pf-v5-global--BorderColor--100);
+}
+
+.login-pf body {
+    background: var(--pf-v5-global--BackgroundColor--200);
+}
+
+/* PatternFly sets light text for the login header (made for a dark picture):
+   dark text on the light page, light text in dark mode. */
+#kc-header-wrapper {
+    font-size: var(--pf-v5-global--FontSize--2xl);
+    font-weight: var(--pf-v5-global--FontWeight--normal);
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--pf-v5-global--Color--dark-100) !important;
+}
+
+.pf-v5-theme-dark #kc-header-wrapper {
+    color: var(--pf-v5-global--Color--light-100) !important;
+}

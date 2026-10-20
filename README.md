@@ -37,7 +37,7 @@ expect without repeating values.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ifdd_keycloak_prj_name`, `ifdd_keycloak_prj_slug` | `IFDD Keycloak`, derived | name; the slug names the directory and the Traefik router |
+| `ifdd_keycloak_prj_name`, `ifdd_keycloak_prj_slug` | `IFDD Keycloak`, derived | name, also the title of the login pages (`display_name` in `realm/values.toml`); the slug names the directory and the Traefik router |
 | `ifdd_keycloak_image` | `quay.io/keycloak/keycloak:26.8.0` | Keycloak image; its tag selects the built-in scopes (`realm/ifdd_realm/builtin/keycloak-<tag>.json`) |
 | `ifdd_keycloak_postgres_image` | `postgres:18` | PostgreSQL image (Keycloak 26.8 supports 14 to 18) |
 | `ifdd_oidc_realm` | `https://keycloak.example.org/realms/ifdd` | realm URL the services use (issuer) |
@@ -71,7 +71,8 @@ role names, quotes in names). Do not put `_copy_without_render` into
 ```
 realm/
   values.toml            values, written by cruft (edit, then rebuild)
-  build_realm.py         python3 realm/build_realm.py [--check]
+  values_<x>.toml        optional: further realms, copies of values.toml
+  build_realm.py         python3 realm/build_realm.py [--check] [--values FILE ...]
   ifdd_realm/            the model, standard library only (Python >= 3.11)
     values.py            values.toml as typed data classes
     roles.py groups.py scopes.py clients.py users.py
@@ -84,7 +85,17 @@ realm/
   import/<realm>-realm.json        generated, committed, mounted into Keycloak
   OVERVIEW.md                      generated, committed: settings, roles, groups,
                                    scopes, clients, service accounts as tables
+  OVERVIEW-<realm>.md              generated for each further values file
+themes/ifdd/login/                login theme (styles on top of keycloak.v2),
+                                   copied without rendering, mounted read-only
 ```
+
+Further values files give further import files for a one-off import:
+`python3 realm/build_realm.py --values realm/values_aa.toml realm/values_dd.toml`
+writes `import/<realm>-realm.json` and `OVERVIEW-<realm>.md` for each, named
+after `[realm] name`. The script never removes files of other realms; it
+lists them. `--check` covers only the given values files. All realm files
+share the client secret placeholders of `.env`.
 
 The instance CI runs `build_realm.py --check`, so a change to `values.toml`
 or `ifdd_realm/` without the rebuilt files fails. `OVERVIEW.md` is rendered
@@ -275,3 +286,11 @@ IFDD_UPDATE_GOLDEN=1 pytest -q tests # after an intended change of the realm
 
 `tests/golden/` holds the realm files and overviews of the fixtures; `ifddtest.json` is the
 file that was imported into Keycloak 26.8.0 and checked with real tokens.
+
+The login theme was checked with the realm of the fixture `ifddtest` in the
+Keycloak 26.8.0 distribution, in `start-dev` and in `start` (dev-file database):
+headless Chromium 141 (Playwright), light and dark mode, `ifdd.css` and the
+parent's styles loaded, heading from the display name, no console errors. A
+second realm without `loginTheme`, imported from a further values file, showed
+the default theme. Not checked: the container image, the proxy in front, other
+browsers, and the realm with real tokens after the change.
