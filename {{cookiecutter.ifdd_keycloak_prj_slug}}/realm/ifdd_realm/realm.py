@@ -1,4 +1,5 @@
 """Realm settings and the assembly of all parts into the import file."""
+import html
 from typing import Any
 
 from . import builtin, clients, groups, roles, scopes, users
@@ -24,6 +25,8 @@ SETTINGS: dict[str, Any] = {
     "eventsExpiration": 30 * 24 * 3600,
     "adminEventsEnabled": True,
     "adminEventsDetailsEnabled": False,
+    # themes/ifdd of the instance, mounted into the container (styles only).
+    "loginTheme": "ifdd",
 }
 
 
@@ -45,6 +48,10 @@ def build(v: Values) -> dict[str, Any]:
         "realm": v.realm,
         "enabled": True,
         **SETTINGS,
+        # The login pages show displayNameHtml as their heading, the browser
+        # title shows displayName; the HTML one is escaped plain text.
+        **({"displayName": v.display_name, "displayNameHtml": html.escape(v.display_name)}
+           if v.display_name else {}),
         "roles": {
             "realm": [r.to_json() for r in roles.realm_roles(v)] + [default.to_json()],
             "client": {client: [r.to_json(client_role=True) for r in client_roles]

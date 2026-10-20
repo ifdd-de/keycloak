@@ -57,6 +57,9 @@ services:
       IFDD_KEYCLOAK_PROXY_CLIENT_SECRET: "${IFDD_KEYCLOAK_PROXY_CLIENT_SECRET:?set in .env}"
     volumes:
       - ./realm/import:/opt/keycloak/data/import:ro
+      # Login theme of the realm (loginTheme=ifdd); a directory theme needs
+      # no build. Keycloak caches themes outside start-dev: restart after a change.
+      - ./themes/ifdd:/opt/keycloak/themes/ifdd:ro
     depends_on:
       postgres:
         condition: service_healthy

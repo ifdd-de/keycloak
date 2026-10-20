@@ -32,6 +32,52 @@ python3 realm/build_realm.py          # nach Änderungen an values.toml oder ifd
 python3 realm/build_realm.py --check  # was die CI ausführt
 ```
 
+## Login-Theme
+
+Die Anmeldeseiten nutzen das Theme `ifdd` aus `themes/ifdd/`: das Theme
+`keycloak.v2` von Keycloak mit schlichtem Hintergrund statt der
+Keycloak-Grafik, einer neutralen Linie über der Karte und dem Anzeigenamen
+des Realms als ruhiger Überschrift. Es ändert nur Stile (`theme.properties`,
+`resources/css/ifdd.css`); Templates und Texte kommen aus `keycloak.v2`,
+sodass ein Keycloak-Upgrade die Seiten nicht bricht. Der dunkle Modus folgt
+dem Browser.
+
+Der Realm wählt das Theme mit `loginTheme`. Überschrift und Browser-Titel
+zeigen `display_name` aus der Werte-Datei, hier
+`{{ cookiecutter.ifdd_keycloak_prj_name }}`. Das Verzeichnis gehört dem
+Template und kommt mit `cruft update`. Keycloak puffert Themes außerhalb von
+`start-dev`: nach einer Änderung Keycloak neu starten.
+
+## Weitere Realms
+
+`realm/values.toml` beschreibt den Realm dieser Instanz. Weitere Realms für
+einen einmaligen Import beschreiben Kopien davon, etwa
+`realm/values_aa.toml`; darin mindestens `name` und `display_name` unter
+`[realm]` ändern:
+
+```bash
+python3 realm/build_realm.py --values realm/values_aa.toml realm/values_dd.toml
+```
+
+Jede Werte-Datei ergibt `realm/import/<name>-realm.json`, benannt nach
+`[realm] name`, und `realm/OVERVIEW-<name>.md`; `realm/values.toml` schreibt
+weiterhin `realm/OVERVIEW.md`. Zwei Werte-Dateien mit demselben Realm-Namen
+brechen das Skript ab. Das Skript entfernt nie Dateien anderer Realms, es
+nennt sie nur. Beim nächsten Start importiert Keycloak jede Datei in
+`realm/import/`, deren Realm noch nicht existiert, und überspringt die
+übrigen.
+
+`--check` vergleicht nur die angegebenen Werte-Dateien (ohne Angabe
+`realm/values.toml`), sodass die CI auch mit weiteren Realm-Dateien in
+`realm/import/` besteht. Eine Datei, die nach dem Umbenennen eines Realms
+übrig bleibt, meldet sie ebenfalls nicht; sie von Hand entfernen.
+
+Alle Realm-Dateien verweisen auf dieselben Client-Secrets in `.env`; weitere
+Realms bekommen also dieselben Secrets wie
+`{{ cookiecutter.ifdd_keycloak_realm }}`. Nach dem Import in der
+Admin-Konsole neue erzeugen (Client, „Credentials“) und den Diensten geben,
+die sie nutzen.
+
 ## Rollen
 
 Die Knotenrollen gibt es als Realm-Rollen und als Client-Rollen des
@@ -109,6 +155,21 @@ Meta-Repositorys anlegen, dann in der Admin-Konsole die Rolle des Clients
 `{{ cookiecutter.ifdd_ts_oidc_client_id }}` zuweisen und sie den Client Scopes
 („Dedicated scope“, „Scope“) von `{{ cookiecutter.ifdd_keycloak_ct_client_id }}`
 und `{{ cookiecutter.ifdd_ts_oidc_client_id }}` hinzufügen.
+
+### Login-Theme und Titel
+
+Ein Realm, der vor dem Theme importiert wurde, behält das Standard-Theme von
+Keycloak und hat keinen Anzeigenamen. In der Admin-Konsole „Realm settings“
+öffnen: unter „Themes“ `ifdd` als Login-Theme wählen, unter „General“
+„Display name“ und „HTML display name“ auf
+`{{ cookiecutter.ifdd_keycloak_prj_name }}` setzen. Das Theme muss
+eingehängt sein: Compose-Dateien dieser Template-Fassung, dann Keycloak neu
+starten.
+
+```{note}
+Nicht getestet: diese Schritte in der Admin-Konsole. Das Theme selbst wurde
+mit einem neu importierten Realm getestet.
+```
 
 ### Den Backend-Redirect einschränken
 

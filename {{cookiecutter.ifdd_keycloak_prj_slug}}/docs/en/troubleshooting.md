@@ -21,6 +21,9 @@ events of the realm in the admin console.
 |---|---|---|
 | a change in `values.toml` or after `cruft update` has no effect | the import runs only while the realm does not exist | make the change in the admin console ({ref}`ifdd-keycloak-operations`) |
 | `realm/build_realm.py --check` fails in CI | `values.toml` or `realm/ifdd_realm/` changed without rebuilding | run `python3 realm/build_realm.py`, commit the generated files |
+| the login page shows Keycloak's default look | the realm was imported before the theme, or `themes/ifdd` is not mounted | set the theme in the admin console ({ref}`ifdd-keycloak-realm`); check the volumes of the compose file |
+| a change of the theme has no effect | Keycloak caches themes outside `start-dev` | restart Keycloak |
+| `build_realm.py` stops with `realm '...' is named in ...` | two values files name the same realm | give each further realm its own `name` |
 | a client secret in `.env` does not work | the realm was imported with another value, or the secret was rotated in Keycloak | take the secret from the admin console (client, "Credentials") |
 
 ## Logins

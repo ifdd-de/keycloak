@@ -13,6 +13,8 @@ Import file: `realm/import/ifdd-realm.json` (read by Keycloak on its first start
 | SSO session idle timeout | 1800 s (30 min) |
 | SSO session max lifespan | 86400 s (1 d) |
 | Device code lifespan | 1800 s (30 min) |
+| Display name | IFDD Keycloak |
+| Login theme | `ifdd` |
 | Login with email | no |
 | SSL required | external |
 | Refresh token rotation | yes (each refresh token valid once) |

@@ -16,6 +16,9 @@
   "eventsExpiration": 2592000,
   "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": false,
+  "loginTheme": "ifdd",
+  "displayName": "IFDD Keycloak",
+  "displayNameHtml": "IFDD Keycloak",
   "roles": {
     "realm": [
       {

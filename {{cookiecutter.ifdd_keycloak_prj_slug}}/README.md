@@ -41,6 +41,11 @@ API); the README of the template `ifdd-de/keycloak` lists the checks. Not
 verified: the container images, PostgreSQL 18 (the tests used 16), backup
 and restore, and upgrades of Keycloak or PostgreSQL with existing data.
 
+The login theme `ifdd` was tested with the same distribution in `start-dev`
+and `start`: headless Chromium, light and dark mode, without console errors.
+Not tested: the theme in the container image, behind the proxy, and in
+browsers other than Chromium.
+
 ## License
 
 BSD-3-Clause, see `LICENSE`.

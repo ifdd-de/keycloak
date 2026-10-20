@@ -8,6 +8,7 @@ import re
 import sys
 
 VALUES = {
+    "ifdd_keycloak_prj_name": "{{ cookiecutter.ifdd_keycloak_prj_name }}",
     "ifdd_keycloak_prj_slug": "{{ cookiecutter.ifdd_keycloak_prj_slug }}",
     "ifdd_oidc_realm": "{{ cookiecutter.ifdd_oidc_realm }}",
     "ifdd_keycloak_host": "{{ cookiecutter.ifdd_keycloak_host }}",
@@ -52,6 +53,9 @@ def check(key, pattern, what):
     if not pattern.match(VALUES[key]):
         errors.append(f"{key}={VALUES[key]!r}: expected {what}")
 
+# Also the title of the login pages, written into a TOML string (values.toml).
+check("ifdd_keycloak_prj_name", re.compile(r'^[^"\\\x00-\x1f]+$'),
+      "a name without double quotes, backslashes or control characters")
 check("ifdd_keycloak_prj_slug", re.compile(r"^[a-z0-9][a-z0-9_-]*$"), "lowercase letters, digits, '-', '_'")
 check("ifdd_oidc_realm", re.compile(r"^https://[^/]+/realms/[^/]+/?$"), "https://<host>/realms/<realm>")
 for key in ("ifdd_keycloak_host", "ifdd_ts_host", "ifdd_wf_host"):
