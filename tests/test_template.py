@@ -307,6 +307,42 @@ def test_user_admin_client(instance):
     assert granted == [account]                  # no other service account may manage users
 
 
+def test_ts_api_clients(instance):
+    """ifdd-ts-api: a client that only carries roles; service accounts get them."""
+    realm = realm_of(instance)[1]
+    clients = {c["clientId"]: c for c in realm["clients"]}
+    api = clients["ifdd-ts-api"]
+    assert not api["publicClient"] and not api["serviceAccountsEnabled"]
+    assert not api["standardFlowEnabled"] and not api["directAccessGrantsEnabled"]
+    assert api["redirectUris"] == []
+    assert {r["name"] for r in realm["roles"]["client"]["ifdd-ts-api"]} == \
+        {"ifdd_ts_ro", "ifdd_ts_rw", "ifdd.de"}
+    ingest = clients["ifdd-ts-ingest"]
+    assert ingest["serviceAccountsEnabled"] and not ingest["fullScopeAllowed"]
+    assert not ingest["standardFlowEnabled"] and not ingest["directAccessGrantsEnabled"]
+    accounts = {u["serviceAccountClientId"]: u.get("clientRoles", {}) for u in realm["users"]}
+    assert accounts["ifdd-ts-ingest"] == {"ifdd-ts-api": ["ifdd_ts_rw", "ifdd.de"]}
+    assert accounts["ifdd-ct"]["ifdd-ts-api"] == ["ifdd_ts_rw", "ifdd.de"]
+    assert accounts["ifdd-api-script"]["ifdd-ts-api"] == ["ifdd_ts_ro", "ifdd.de"]
+    assert "ifdd-ts-api" not in accounts["ifdd-ts"] and "ifdd-ts-api" not in accounts["ifdd-user-admin"]
+    # clients without full scope need the roles in their scope mapping
+    mapped = {m["client"]: m["roles"] for m in realm["clientScopeMappings"]["ifdd-ts-api"]}
+    assert mapped == {"ifdd-ct": ["ifdd_ts_rw", "ifdd.de"], "ifdd-ts-ingest": ["ifdd_ts_rw", "ifdd.de"]}
+    # no group grants them: ts-api takes client credentials only
+    assert all("ifdd-ts-api" not in g.get("clientRoles", {}) for g in realm["groups"])
+
+
+def test_values_file_without_ts_api_still_loads(instance):
+    path = further_realm(instance, "aa")
+    text = re.sub(r'(?ms)^\[clients\.ts_(api|ingest)\].*?(?=^\[)', "", path.read_text())
+    path.write_text(re.sub(r'(?m)^ts_(read|write) = .*\n', "", text))
+    assert "ts_api" not in path.read_text()
+    assert build(instance, "--values", "realm/values_aa.toml").returncode == 0
+    realm = json.loads((instance / "realm" / "import" / "aa-realm.json").read_text())
+    assert not {"ifdd-ts-api", "ifdd-ts-ingest"} & {c["clientId"] for c in realm["clients"]}
+    assert "ifdd-ts-api" not in realm["roles"]["client"]
+
+
 def test_ui_roles_reach_the_client_side(instance):
     """Pattern 2B: the backend client's own client roles in ID token and userinfo."""
     realm = realm_of(instance)[1]
@@ -443,6 +479,11 @@ def test_compose_is_valid(instance, name):
     {"ifdd_keycloak_backup_schedule": ""},
     {"ifdd_keycloak_backup_timezone": "Europe/ Berlin"},
     {"ifdd_keycloak_backup_keep_days": "seven"},
+    # ts-api: a role with a dot would be a store pattern; roles and clients distinct
+    {"ifdd_ts_api_role_read": "ts.read"},
+    {"ifdd_ts_api_role_write": "ifdd_ts_ro"},
+    {"ifdd_keycloak_ts_ingest_client_id": "ifdd-ct"},
+    {"ifdd_ts_api_oidc_client_id": "ifdd-ts"},
 ])
 def test_pre_hook_rejects(tmp_path, extra):
     with pytest.raises(FailedHookException):

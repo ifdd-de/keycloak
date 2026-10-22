@@ -34,6 +34,23 @@
   directory. Before the next `docker compose up` add
   `IFDD_KEYCLOAK_BACKUP_UID` and `IFDD_KEYCLOAK_BACKUP_GID` (values of `id -u`
   and `id -g`) to `.env`, and run `mkdir -m 700 backups`.
+- Time series API (ifdd-ts-api): new client `ifdd_ts_api_oidc_client_id`
+  (default `ifdd-ts-api`) that only carries roles and is the audience of the
+  tokens of ifdd-ts-api: `ifdd_ts_api_role_read` (`ifdd_ts_ro`),
+  `ifdd_ts_api_role_write` (`ifdd_ts_rw`) and the context root as store
+  pattern. New client `ifdd_keycloak_ts_ingest_client_id` (`ifdd-ts-ingest`)
+  with client credentials, write role and root. The service accounts of ct
+  (write, root) and of the api client (read, root) get roles of ifdd-ts-api
+  too; ct also in its scope mapping. Values files without `[clients.ts_api]`
+  still load and give a realm without these clients.
+- New `.env` entries `IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET` (required by
+  Keycloak for the client, used by nobody) and
+  `IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET`; the compose files require both. The
+  pre-generation hook checks the new names (roles without a dot, distinct).
+- Documentation: `realm` (clients, section "Time series API", adding the
+  clients to an existing realm with `kcadm.sh`), `reference`, `setup`.
+- Upgrade of a running realm: see `realm`, "Adding the clients of ts-api";
+  it prints the two secrets for `.env`.
 
 ## [26.10.2] - 2026-10-14
 

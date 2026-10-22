@@ -39,11 +39,12 @@ Realm roles:
 
 Every user and service account gets the default role `default-roles-ifdd`: `ifdd_public`, `ifdd_public` of `ifdd`. Further rights come from groups. Keycloak adds `offline_access`, `uma_authorization` and the account roles `view-profile`, `manage-account` on import; no client offers offline tokens.
 
-Client roles (checked by ifdd-be and ifdd-ui in `resource_access`):
+Client roles (checked in `resource_access` by ifdd-be and ifdd-ui, and by ifdd-ts-api for its client):
 
 | Client | Roles |
 |---|---|
 | `ifdd` | `ifdd_public`<br>`ifdd_nodes_ro`<br>`ifdd_nodes_rw`<br>`ifdd_nodes_priv`<br>`ifdd.de` |
+| `ifdd-ts-api` | `ifdd_ts_ro`<br>`ifdd_ts_rw`<br>`ifdd.de` |
 
 ## Groups
 
@@ -74,23 +75,27 @@ Plus the 15 built-in scopes of Keycloak (`ifdd_realm/builtin/`), defaults: `role
 | `ifdd-user-admin` | IFDD User Admin | confidential, secret `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | client credentials | – | – | – | no |
 | `ifdd-ts` | IFDD Time Series (Grafana) | confidential, secret `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | authorization code (PKCE S256)<br>client credentials | https://ts.example.org/login/generic_oauth | `ifdd_nodes_ro` | – | no |
 | `ifdd-proxy` | IFDD Proxy (oauth2-proxy) | confidential, secret `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | authorization code (PKCE S256) | https://wf.example.org/oauth2/callback | `groups` | aud += ifdd-proxy | yes |
+| `ifdd-ts-api` | IFDD Time Series API | confidential, secret `IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET` | – | – | – | – | yes |
+| `ifdd-ts-ingest` | IFDD Time Series Ingest | confidential, secret `IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET` | client credentials | – | – | – | no |
 
 Roles allowed into the tokens of clients without full scope (besides their own client roles):
 
 | Client | Roles |
 |---|---|
 | `ifdd` | `ifdd_public` |
-| `ifdd-ct` | `ifdd_public`<br>`ifdd_nodes_ro`<br>`ifdd_nodes_rw`<br>`ifdd_public` of `ifdd`<br>`ifdd_nodes_ro` of `ifdd`<br>`ifdd_nodes_rw` of `ifdd`<br>`ifdd.de` of `ifdd` |
+| `ifdd-ct` | `ifdd_public`<br>`ifdd_nodes_ro`<br>`ifdd_nodes_rw`<br>`ifdd_public` of `ifdd`<br>`ifdd_nodes_ro` of `ifdd`<br>`ifdd_nodes_rw` of `ifdd`<br>`ifdd.de` of `ifdd`<br>`ifdd_ts_rw` of `ifdd-ts-api`<br>`ifdd.de` of `ifdd-ts-api` |
 | `ifdd-ts` | `admin`<br>`readwrite`<br>`readonly`<br>`ifdd_public`<br>`ifdd_nodes_ro`<br>`ifdd_public` of `ifdd`<br>`ifdd_nodes_ro` of `ifdd`<br>`ifdd.de` of `ifdd` |
+| `ifdd-ts-ingest` | `ifdd_ts_rw` of `ifdd-ts-api`<br>`ifdd.de` of `ifdd-ts-api` |
 | `ifdd-user-admin` | `manage-users` of `realm-management` |
 
 ## Service accounts
 
 | Client | Roles |
 |---|---|
-| `ifdd-api-script` | `default-roles-ifdd`<br>`ifdd_nodes_ro`<br>`ifdd_nodes_ro` of `ifdd`<br>`ifdd.de` of `ifdd` |
-| `ifdd-ct` | `default-roles-ifdd`<br>`ifdd_nodes_ro`<br>`ifdd_nodes_rw`<br>`ifdd_nodes_ro` of `ifdd`<br>`ifdd_nodes_rw` of `ifdd`<br>`ifdd.de` of `ifdd` |
+| `ifdd-api-script` | `default-roles-ifdd`<br>`ifdd_nodes_ro`<br>`ifdd_nodes_ro` of `ifdd`<br>`ifdd.de` of `ifdd`<br>`ifdd_ts_ro` of `ifdd-ts-api`<br>`ifdd.de` of `ifdd-ts-api` |
+| `ifdd-ct` | `default-roles-ifdd`<br>`ifdd_nodes_ro`<br>`ifdd_nodes_rw`<br>`ifdd_nodes_ro` of `ifdd`<br>`ifdd_nodes_rw` of `ifdd`<br>`ifdd.de` of `ifdd`<br>`ifdd_ts_rw` of `ifdd-ts-api`<br>`ifdd.de` of `ifdd-ts-api` |
 | `ifdd-user-admin` | `default-roles-ifdd`<br>`manage-users` of `realm-management` |
 | `ifdd-ts` | `default-roles-ifdd`<br>`ifdd_nodes_ro`<br>`ifdd_nodes_ro` of `ifdd`<br>`ifdd.de` of `ifdd` |
+| `ifdd-ts-ingest` | `default-roles-ifdd`<br>`ifdd_ts_rw` of `ifdd-ts-api`<br>`ifdd.de` of `ifdd-ts-api` |
 
 No personal users: create them in the admin console and put them into a group.

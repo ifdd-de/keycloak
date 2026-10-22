@@ -81,6 +81,7 @@ kopiert sie; von Hand:
 | `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}` | `keycloak_add_user.py` des Meta-Repositorys | `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | wird aus dieser `.env` gelesen |
 | `{{ cookiecutter.ifdd_ts_oidc_client_id }}` | ts (Grafana) | `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | `secrets/oidc_client_secret` von ts |
 | `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | proxy (oauth2-proxy) | `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | `secrets/oauth2_proxy_client_secret` des Proxys |
+| `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | Dienste, die über ts-api Samples schreiben | `IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET` | der Dienst, von Hand |
 
 `{{ cookiecutter.ifdd_oidc_backend_client_id }}` ist public und hat kein
 Secret. Der Import liest diese Secrets nur beim ersten Start; danach hält

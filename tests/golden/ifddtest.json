@@ -125,6 +125,29 @@
           "clientRole": true,
           "attributes": {}
         }
+      ],
+      "ifdd-ts-api": [
+        {
+          "name": "ifdd_ts_ro",
+          "description": "Read samples (ifdd-ts-api).",
+          "composite": false,
+          "clientRole": true,
+          "attributes": {}
+        },
+        {
+          "name": "ifdd_ts_rw",
+          "description": "Write samples (ifdd-ts-api).",
+          "composite": false,
+          "clientRole": true,
+          "attributes": {}
+        },
+        {
+          "name": "ifdd.de",
+          "description": "Store pattern: every store below ifdd.de.",
+          "composite": false,
+          "clientRole": true,
+          "attributes": {}
+        }
       ]
     }
   },
@@ -917,6 +940,10 @@
         "ifddtest": [
           "ifdd_nodes_ro",
           "ifdd.de"
+        ],
+        "ifdd-ts-api": [
+          "ifdd_ts_ro",
+          "ifdd.de"
         ]
       }
     },
@@ -933,6 +960,10 @@
         "ifddtest": [
           "ifdd_nodes_ro",
           "ifdd_nodes_rw",
+          "ifdd.de"
+        ],
+        "ifdd-ts-api": [
+          "ifdd_ts_rw",
           "ifdd.de"
         ]
       }
@@ -961,6 +992,20 @@
       "clientRoles": {
         "ifddtest": [
           "ifdd_nodes_ro",
+          "ifdd.de"
+        ]
+      }
+    },
+    {
+      "username": "service-account-ifdd-ts-ingest",
+      "enabled": true,
+      "serviceAccountClientId": "ifdd-ts-ingest",
+      "realmRoles": [
+        "default-roles-ifddtest"
+      ],
+      "clientRoles": {
+        "ifdd-ts-api": [
+          "ifdd_ts_rw",
           "ifdd.de"
         ]
       }
@@ -1008,6 +1053,22 @@
         "roles": [
           "ifdd_public",
           "ifdd_nodes_ro",
+          "ifdd.de"
+        ]
+      }
+    ],
+    "ifdd-ts-api": [
+      {
+        "client": "ifdd-ct",
+        "roles": [
+          "ifdd_ts_rw",
+          "ifdd.de"
+        ]
+      },
+      {
+        "client": "ifdd-ts-ingest",
+        "roles": [
+          "ifdd_ts_rw",
           "ifdd.de"
         ]
       }
@@ -1316,6 +1377,80 @@
         "acr",
         "basic",
         "groups"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "microprofile-jwt",
+        "organization"
+      ]
+    },
+    {
+      "clientId": "ifdd-ts-api",
+      "name": "IFDD Time Series API",
+      "description": "Roles and audience of ifdd-ts-api; no login.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "frontchannelLogout": true,
+      "fullScopeAllowed": true,
+      "attributes": {},
+      "protocolMappers": [],
+      "defaultClientScopes": [
+        "role_list",
+        "saml_organization",
+        "AuthnContextClassRef",
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "acr",
+        "basic"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "microprofile-jwt",
+        "organization"
+      ]
+    },
+    {
+      "clientId": "ifdd-ts-ingest",
+      "name": "IFDD Time Series Ingest",
+      "description": "Client credentials of services writing samples through ifdd-ts-api.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "frontchannelLogout": true,
+      "fullScopeAllowed": false,
+      "attributes": {},
+      "protocolMappers": [],
+      "defaultClientScopes": [
+        "role_list",
+        "saml_organization",
+        "AuthnContextClassRef",
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "acr",
+        "basic"
       ],
       "optionalClientScopes": [
         "address",

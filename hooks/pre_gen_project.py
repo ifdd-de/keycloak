@@ -32,6 +32,10 @@ VALUES = {
     "ifdd_ts_role_admin": "{{ cookiecutter.ifdd_ts_role_admin }}",
     "ifdd_ts_role_editor": "{{ cookiecutter.ifdd_ts_role_editor }}",
     "ifdd_ts_role_viewer": "{{ cookiecutter.ifdd_ts_role_viewer }}",
+    "ifdd_ts_api_oidc_client_id": "{{ cookiecutter.ifdd_ts_api_oidc_client_id }}",
+    "ifdd_ts_api_role_read": "{{ cookiecutter.ifdd_ts_api_role_read }}",
+    "ifdd_ts_api_role_write": "{{ cookiecutter.ifdd_ts_api_role_write }}",
+    "ifdd_keycloak_ts_ingest_client_id": "{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}",
     "ifdd_proxy_oidc_client_id": "{{ cookiecutter.ifdd_proxy_oidc_client_id }}",
     "ifdd_wf_host": "{{ cookiecutter.ifdd_wf_host }}",
     "ifdd_keycloak_wf_admin_group": "{{ cookiecutter.ifdd_keycloak_wf_admin_group }}",
@@ -79,8 +83,12 @@ for key in ("ifdd_keycloak_realm", "ifdd_keycloak_admin_user", "ifdd_proxy_netwo
             "ifdd_ts_role_admin", "ifdd_ts_role_editor", "ifdd_ts_role_viewer",
             "ifdd_proxy_oidc_client_id", "ifdd_keycloak_wf_admin_group",
             "ifdd_keycloak_role_nodes_priv", "ifdd_keycloak_group_nodes_readers",
-            "ifdd_keycloak_group_nodes_writers", "ifdd_keycloak_group_nodes_privileged"):
+            "ifdd_keycloak_group_nodes_writers", "ifdd_keycloak_group_nodes_privileged",
+            "ifdd_ts_api_oidc_client_id", "ifdd_keycloak_ts_ingest_client_id"):
     check(key, NAME, "letters, digits, '.', '_', '-' (no spaces, no quotes)")
+# Roles of ifdd-ts-api: a name with a dot would be read as a store pattern.
+for key in ("ifdd_ts_api_role_read", "ifdd_ts_api_role_write"):
+    check(key, re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$"), "letters, digits, '_', '-' (no dot)")
 
 # A context pattern, as ifdd-be-core reads it: two or more lower-case labels.
 check("ifdd_context_root", re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"),
@@ -125,7 +133,8 @@ if not VALUES["ifdd_keycloak_dev_port"].isdigit() or not 1 <= int(VALUES["ifdd_k
 
 clients = [VALUES[k] for k in ("ifdd_oidc_backend_client_id", "ifdd_keycloak_api_client_id",
                                 "ifdd_keycloak_ct_client_id", "ifdd_keycloak_useradmin_client_id",
-                                "ifdd_ts_oidc_client_id", "ifdd_proxy_oidc_client_id")]
+                                "ifdd_ts_oidc_client_id", "ifdd_proxy_oidc_client_id",
+                                "ifdd_ts_api_oidc_client_id", "ifdd_keycloak_ts_ingest_client_id")]
 if len(set(clients)) != len(clients):
     errors.append(f"client ids must differ: {clients}")
 roles = [VALUES[k] for k in ("ifdd_be_role_nodes_read", "ifdd_keycloak_role_nodes_write",
@@ -137,6 +146,8 @@ if len(set(roles)) != len(roles):
 groups = [VALUES[k] for k in ("ifdd_keycloak_wf_admin_group", "ifdd_keycloak_group_nodes_readers",
                                "ifdd_keycloak_group_nodes_writers",
                                "ifdd_keycloak_group_nodes_privileged")]
+if VALUES["ifdd_ts_api_role_read"] == VALUES["ifdd_ts_api_role_write"]:
+    errors.append("ifdd_ts_api_role_read and ifdd_ts_api_role_write must differ")
 if len(set(groups)) != len(groups):
     errors.append(f"group names must differ: {groups}")
 if VALUES["ifdd_be_role_nodes_read"] in {"groups", "profile", "email", "roles", "basic", "acr",

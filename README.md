@@ -61,6 +61,9 @@ expect without repeating values.
 | `ifdd_keycloak_useradmin_client_id` | `ifdd-user-admin` | client credentials for scripts that create users and add them to groups (see below) |
 | `ifdd_ts_oidc_client_id`, `ifdd_ts_host` | `ifdd-ts`, `ts.example.org` | Grafana of ifdd-ts (redirect `https://<host>/login/generic_oauth`) |
 | `ifdd_ts_role_admin`, `_editor`, `_viewer` | `admin`, `readwrite`, `readonly` | realm roles for Grafana Admin, Editor, Viewer |
+| `ifdd_ts_api_oidc_client_id` | `ifdd-ts-api` | client of ifdd-ts-api: carries its roles, audience of its tokens, no login |
+| `ifdd_ts_api_role_read`, `ifdd_ts_api_role_write` | `ifdd_ts_ro`, `ifdd_ts_rw` | client roles of that client: read and write samples (no dot) |
+| `ifdd_keycloak_ts_ingest_client_id` | `ifdd-ts-ingest` | client credentials for services that write samples through ifdd-ts-api |
 | `ifdd_proxy_oidc_client_id`, `ifdd_wf_host` | `ifdd-proxy`, `wf.example.org` | oauth2-proxy of ifdd-proxy (redirect `https://<wf host>/oauth2/callback`) |
 | `ifdd_keycloak_wf_admin_group` | `ifdd_wf_admins` | group admitted to ifdd-wf; keep equal to `ifdd_wf_sso_group` |
 | `ifdd_keycloak_proxy_gate_hosts` | `ifdd_wf_host` | comma-separated hosts behind the oauth2-proxy gate (its redirect URIs) |

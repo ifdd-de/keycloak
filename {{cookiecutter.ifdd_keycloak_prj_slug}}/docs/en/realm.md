@@ -109,6 +109,8 @@ UI check the client roles (`resource_access`).
 | `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}` | confidential | client credentials | none |
 | `{{ cookiecutter.ifdd_ts_oidc_client_id }}` | confidential | authorization code with PKCE S256, client credentials | `https://{{ cookiecutter.ifdd_ts_host }}/login/generic_oauth` |
 | `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | confidential | authorization code with PKCE S256 | {% for host in gate_hosts %}`https://{{ host }}/oauth2/callback`{{ ", " if not loop.last else "" }}{% endfor %} |
+| `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` | confidential | none (carries the roles of ts-api) | none |
+| `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | confidential | client credentials | none |
 
 The redirect URIs of the login gate come from
 `ifdd_keycloak_proxy_gate_hosts`: one per host behind oauth2-proxy. Which
@@ -131,6 +133,36 @@ that grants it, and the service accounts of
 through groups, together with a node group. Further patterns, each with its
 group `ifdd_ctx_<pattern>`, are created in a running realm with
 `keycloak_add_context_role.py` of the meta repository.
+
+## Time series API
+
+ifdd-ts-api checks the client roles of its own client
+`{{ cookiecutter.ifdd_ts_api_oidc_client_id }}`, which is also the audience of
+its tokens. Nobody logs in with that client: no flow is enabled, and
+Keycloak puts it into the `aud` of every token that holds one of its roles.
+Its roles:
+
+| Role | Meaning |
+|---|---|
+| `{{ cookiecutter.ifdd_ts_api_role_read }}` | read samples |
+| `{{ cookiecutter.ifdd_ts_api_role_write }}` | write samples |
+| `{{ cookiecutter.ifdd_context_root }}` | store pattern of the root: every store |
+
+A further store pattern is a further client role with a dot, e.g.
+`temperature.ops.example.ifdd.de` for that store only. The roles go to
+service accounts only, never to groups (ts-api takes client credentials
+only):
+
+| Service account | Roles of `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` |
+|---|---|
+| `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | `{{ cookiecutter.ifdd_ts_api_role_write }}`, `{{ cookiecutter.ifdd_context_root }}` |
+| `{{ cookiecutter.ifdd_keycloak_ct_client_id }}` | `{{ cookiecutter.ifdd_ts_api_role_write }}`, `{{ cookiecutter.ifdd_context_root }}` |
+| `{{ cookiecutter.ifdd_keycloak_api_client_id }}` | `{{ cookiecutter.ifdd_ts_api_role_read }}`, `{{ cookiecutter.ifdd_context_root }}` |
+
+`{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` and
+`{{ cookiecutter.ifdd_keycloak_ct_client_id }}` have no full scope; the roles
+are in their scope mappings too. Grafana (`{{ cookiecutter.ifdd_ts_oidc_client_id }}`)
+gets none: it reads VictoriaMetrics directly.
 
 ## Changes to an existing realm
 
@@ -223,4 +255,65 @@ IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET=<printed secret>
 Tested with `kcadm.sh` of the Keycloak 26.8.0 distribution against
 `http://localhost:8080`; not tested inside the container and with
 `KC_HOSTNAME` set.
+```
+
+### Adding the clients of ts-api
+
+A realm imported before ts-api existed lacks the clients
+`{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` and
+`{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}`, and the compose files
+require `IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET` and
+`IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET` from then on. Create both clients and
+grant the roles with `kcadm.sh` inside the running container, as an admin of
+the master realm:
+
+```bash
+docker compose -f docker-compose-production.yml exec keycloak bash
+```
+
+```bash
+# inside the container
+REALM={{ cookiecutter.ifdd_keycloak_realm }} API={{ cookiecutter.ifdd_ts_api_oidc_client_id }} INGEST={{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}
+RO={{ cookiecutter.ifdd_ts_api_role_read }} RW={{ cookiecutter.ifdd_ts_api_role_write }} ROOT={{ cookiecutter.ifdd_context_root }}
+kcadm() { /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm.config; }
+kcadm config credentials --server http://localhost:8080 --realm master --user <admin>  # asks for the password
+id_of() { kcadm get clients -r "$REALM" -q clientId="$1" --fields id --format csv --noquotes; }
+AID=$(kcadm create clients -r "$REALM" -i -s clientId="$API" -s name="IFDD Time Series API" \
+  -s publicClient=false -s serviceAccountsEnabled=false -s standardFlowEnabled=false \
+  -s directAccessGrantsEnabled=false)
+for role in "$RO" "$RW" "$ROOT"; do kcadm create "clients/$AID/roles" -r "$REALM" -s name="$role"; done
+IID=$(kcadm create clients -r "$REALM" -i -s clientId="$INGEST" -s name="IFDD Time Series Ingest" \
+  -s publicClient=false -s serviceAccountsEnabled=true -s standardFlowEnabled=false \
+  -s directAccessGrantsEnabled=false -s fullScopeAllowed=false)
+grant() {  # client, role, role
+  kcadm add-roles -r "$REALM" --uusername "service-account-$1" --cclientid "$API" \
+    --rolename "$2" --rolename "$3"
+  for role in "$2" "$3"; do   # scope mapping, for clients without full scope
+    kcadm create "clients/$(id_of "$1")/scope-mappings/clients/$AID" -r "$REALM" \
+      -b "[$(kcadm get "clients/$AID/roles/$role" -r "$REALM")]"
+  done
+}
+grant "$INGEST" "$RW" "$ROOT"
+grant {{ cookiecutter.ifdd_keycloak_ct_client_id }} "$RW" "$ROOT"
+grant {{ cookiecutter.ifdd_keycloak_api_client_id }} "$RO" "$ROOT"
+kcadm get "clients/$AID/client-secret" -r "$REALM" --fields value --format csv --noquotes
+kcadm get "clients/$IID/client-secret" -r "$REALM" --fields value --format csv --noquotes
+rm /tmp/kcadm.config
+exit
+```
+
+Put the two printed secrets into `.env`, in this order:
+
+```text
+IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET=<first secret>
+IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET=<second secret>
+```
+
+The scope mapping of `{{ cookiecutter.ifdd_keycloak_api_client_id }}` is not
+needed (it has full scope) and does no harm.
+
+```{note}
+Tested with `kcadm.sh` of the Keycloak 26.8.0 distribution against
+`http://localhost:8080` and a realm imported from the previous template;
+not tested inside the container.
 ```

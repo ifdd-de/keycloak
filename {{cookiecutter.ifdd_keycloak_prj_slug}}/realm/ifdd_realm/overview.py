@@ -108,7 +108,8 @@ def render(realm: dict[str, Any], builtin: Builtin, values_file: str = "realm/va
             "`manage-account` on import; no client offers offline tokens.", ""]
     client_roles = [[f"`{c}`", [f"`{r['name']}`" for r in rs]] for c, rs in realm["roles"]["client"].items()]
     if client_roles:
-        out += ["Client roles (checked by ifdd-be and ifdd-ui in `resource_access`):", ""]
+        out += ["Client roles (checked in `resource_access` by ifdd-be and ifdd-ui, "
+                "and by ifdd-ts-api for its client):", ""]
         out += table(["Client", "Roles"], client_roles)
 
     out += ["## Groups", ""]

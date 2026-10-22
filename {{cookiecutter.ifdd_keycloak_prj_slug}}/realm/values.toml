@@ -25,6 +25,10 @@ context_root = "{{ cookiecutter.ifdd_context_root }}"
 grafana_admin = "{{ cookiecutter.ifdd_ts_role_admin }}"
 grafana_editor = "{{ cookiecutter.ifdd_ts_role_editor }}"
 grafana_viewer = "{{ cookiecutter.ifdd_ts_role_viewer }}"
+# Client roles of the ts-api client (ifdd-ts-api reads resource_access):
+# read and write samples; the context root above is its store pattern too.
+ts_read = "{{ cookiecutter.ifdd_ts_api_role_read }}"
+ts_write = "{{ cookiecutter.ifdd_ts_api_role_write }}"
 
 [groups]
 wf_admins = "{{ cookiecutter.ifdd_keycloak_wf_admin_group }}"   # must equal ifdd_wf_sso_group of ifdd-wf
@@ -50,6 +54,12 @@ id = "{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}"
 [clients.ts]                       # Grafana of ifdd-ts
 id = "{{ cookiecutter.ifdd_ts_oidc_client_id }}"
 host = "{{ cookiecutter.ifdd_ts_host }}"
+
+[clients.ts_api]                   # ifdd-ts-api: audience and roles, no login
+id = "{{ cookiecutter.ifdd_ts_api_oidc_client_id }}"
+
+[clients.ts_ingest]                # services writing samples through ifdd-ts-api
+id = "{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}"
 
 [clients.proxy]                    # oauth2-proxy of ifdd-proxy
 id = "{{ cookiecutter.ifdd_proxy_oidc_client_id }}"
