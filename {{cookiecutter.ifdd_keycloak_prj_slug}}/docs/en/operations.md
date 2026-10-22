@@ -20,14 +20,15 @@ that. Inside this project Keycloak waits for a healthy database.
 |---|---|---|
 | `keycloak` | `GET /health/ready` on the management port 9000, with bash (the image has no curl) | 15 s, 5 retries, start period 180 s |
 | `postgres` | `pg_isready -d keycloak -U keycloak` | 10 s, 10 retries |
-| `backup` | from the image: `curl` on its port 8080, answered by the scheduler | 5 min |
+| `backup` | `curl` on port 8080, answered by the scheduler of the image: 503 once the last backup failed | every 5 s in the first 2 min, then 5 min, 3 retries |
 
 With `KC_METRICS_ENABLED` the readiness includes the database, so Keycloak
 turns unhealthy while the database is gone. Docker does not restart an
 unhealthy container by itself; `docker compose ps` shows the state. All
 containers restart with `restart: always` when they exit. The health check
-of `backup` only shows that the scheduler runs, not whether the last dump
-succeeded; that is in the log of the container.
+of `backup` turns unhealthy when the last dump failed (also the one on
+start); the log of the container shows why. Its short start interval lets
+`up --wait` finish within seconds (Docker Engine 25 or later).
 
 ## Logs
 

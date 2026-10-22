@@ -21,14 +21,16 @@ Datenbank.
 |---|---|---|
 | `keycloak` | `GET /health/ready` auf dem Management-Port 9000, mit bash (das Image hat kein curl) | 15 s, 5 Versuche, Startphase 180 s |
 | `postgres` | `pg_isready -d keycloak -U keycloak` | 10 s, 10 Versuche |
-| `backup` | aus dem Image: `curl` auf seinen Port 8080, beantwortet vom Scheduler | 5 min |
+| `backup` | `curl` auf Port 8080, beantwortet vom Scheduler des Images: 503, sobald der letzte Backup-Lauf scheiterte | alle 5 s in den ersten 2 min, dann 5 min, 3 Versuche |
 
 Mit `KC_METRICS_ENABLED` umfasst die Readiness die Datenbank; Keycloak wird
 also unhealthy, solange die Datenbank fehlt. Docker startet einen
 unhealthy-Container nicht von selbst neu; `docker compose ps` zeigt den
 Zustand. Alle Container starten mit `restart: always` neu, wenn sie sich
-beenden. Der Healthcheck von `backup` zeigt nur, dass der Scheduler läuft,
-nicht, ob der letzte Dump gelang; das steht im Log des Containers.
+beenden. Der Healthcheck von `backup` wird unhealthy, wenn der letzte Dump
+scheiterte (auch der beim Start); das Log des Containers zeigt den Grund.
+Durch das kurze Startintervall endet `up --wait` nach wenigen Sekunden
+(Docker Engine 25 oder neuer).
 
 ## Logs
 
