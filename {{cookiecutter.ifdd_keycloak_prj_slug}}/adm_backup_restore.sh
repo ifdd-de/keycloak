@@ -37,7 +37,9 @@ pg() {
 
 [ "$#" -eq 1 ] || usage
 dump=$1
-[ -f "$dump" ] && [ -r "$dump" ] || die "cannot read $dump"
+if [ ! -f "$dump" ] || [ ! -r "$dump" ]; then
+    die "cannot read $dump"
+fi
 gzip -t -- "$dump" 2>/dev/null || die "$dump is not a complete gzip file"
 [ -t 0 ] || die "needs a terminal to confirm"
 
