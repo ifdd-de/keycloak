@@ -5,7 +5,10 @@
 - Backup of the database: a service `backup` in the production compose file
   (image `prodrigestivill/postgres-backup-local`) runs `pg_dump` on a schedule
   and on every start, and keeps daily, weekly and monthly dumps in `backups/`
-  of the instance, a bind mount, not a volume. New variables
+  of the instance, a bind mount, not a volume. Its health check (503 after a
+  failed dump) probes every 5 s in the first two minutes, so `up --wait` of
+  the meta repository does not time out; the image's own check would wait
+  5 minutes. New variables
   `ifdd_keycloak_backup_image` (default
   `prodrigestivill/postgres-backup-local:18`, same major version as
   `ifdd_keycloak_postgres_image`, checked by the pre-generation hook),

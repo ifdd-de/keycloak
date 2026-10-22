@@ -128,6 +128,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      # Answered by the scheduler of the image: 503 once the last backup failed.
+      # The image's own check waits 5 minutes before its first probe, longer
+      # than `up --wait` of the meta repository; the start interval makes the
+      # service healthy within seconds (needs Docker Engine 25 or later).
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/"]
+      interval: 5m
+      timeout: 5s
+      retries: 3
+      start_period: 2m
+      start_interval: 5s
     networks:
       - db
     cap_drop:

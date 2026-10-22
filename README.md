@@ -166,8 +166,12 @@ MIT license). It runs `pg_dump` of the database on the schedule
 and monthly dumps for the times of the `ifdd_keycloak_backup_keep_*`
 variables. Its image is built on the official PostgreSQL image, so its
 `pg_dump` has the version of its tag; the pre-generation hook requires the
-same major version as `ifdd_keycloak_postgres_image`. The development compose
-file has no backup service.
+same major version as `ifdd_keycloak_postgres_image`. Its health check is set
+in the compose file: the image's own check probes first after 5 minutes,
+longer than `up --wait` of the meta repository allows; a start interval of
+5 s (Docker Engine 25 or later) makes the service healthy at once, and the
+scheduler answers 503 after a failed dump. The development compose file has
+no backup service.
 
 The dumps go to `backups/` of the instance, a bind mount, not a Docker
 volume. The service runs as the user and group of

@@ -22,6 +22,7 @@ events of the realm in the admin console.
 | `docker compose` stops with `IFDD_KEYCLOAK_BACKUP_UID ... set in .env` | the instance is older than the backup service; `cruft update` leaves `.env` alone | add `IFDD_KEYCLOAK_BACKUP_UID` and `IFDD_KEYCLOAK_BACKUP_GID` with the values of `id -u` and `id -g` of the user who is to own the dumps |
 | `bind source path does not exist: .../backups` | `backups/` is missing, for example in a fresh clone or after the template update that brought the backup service (Git keeps no empty directory) | `mkdir -m 700 backups` as the user of `IFDD_KEYCLOAK_BACKUP_UID` |
 | `backup` restarts, its log says `BACKUP_DIR points to a file or folder with insufficient permissions` | `backups/` belongs to another user than `IFDD_KEYCLOAK_BACKUP_UID`, for example to root | give it to that user: `chown -R <uid>:<gid> backups` |
+| `backup` is `unhealthy` | the last dump failed, for example while the database was gone | `docker compose -f docker-compose-production.yml logs backup`; the next successful dump makes it healthy again |
 | the dumps are made at an unexpected hour | the schedule runs in the time zone `TZ` of the container; an unknown name falls back to UTC | check `TZ` in the compose file and the dates in the file names |
 | the post-generation hook stops with `refusing to run as root` | the instance was generated as root | generate it as the user who is to own the dumps |
 | `adm_backup_restore.sh` says `needs a terminal to confirm` | it ran without a terminal, for example from cron or a pipe | run it in an interactive shell |

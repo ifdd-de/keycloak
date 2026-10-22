@@ -524,6 +524,16 @@ def test_backup_service(instance, fixture_name):
     assert backup["restart"] == "always"
 
 
+def test_backup_healthcheck(instance):
+    """The image's own check probes first after 5 minutes, longer than `up --wait
+    --wait-timeout 300` of the meta repository; the start interval makes the
+    service healthy within seconds. The scheduler answers 503 after a failed run."""
+    check = yaml.safe_load((instance / "docker-compose-production.yml").read_text())["services"]["backup"]["healthcheck"]
+    assert check["test"] == ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/"]
+    assert check["start_interval"] == "5s" and check["start_period"] == "2m"
+    assert check["interval"] == "5m" and check["timeout"] == "5s" and check["retries"] == 3
+
+
 def test_no_backup_service_in_development(instance):
     services = yaml.safe_load((instance / "docker-compose-development.yml").read_text())["services"]
     assert set(services) == {"postgres", "keycloak"}
