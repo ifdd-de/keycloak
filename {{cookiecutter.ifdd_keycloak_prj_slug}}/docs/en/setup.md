@@ -39,6 +39,11 @@ The post-generation hook writes `.env` from `dotenv.dist` (an existing
 | `IFDD_KEYCLOAK_ADMIN_PASSWORD` | password of the temporary admin `IFDD_KEYCLOAK_ADMIN_USER` of the master realm |
 | `IFDD_KEYCLOAK_DB_PASSWORD` | password of the database user `keycloak` |
 | `IFDD_KEYCLOAK_*_CLIENT_SECRET` | the secrets of the confidential clients, read by the realm import |
+| `IFDD_KEYCLOAK_BACKUP_UID`, `IFDD_KEYCLOAK_BACKUP_GID` | user and group id of the user who generates the instance; the backup service writes the dumps as that user |
+
+It creates the directory `backups/` (mode 0700) for the dumps of the backup
+service. As root the hook stops: the dumps would belong to root. Generate the
+instance as the user who is to own them.
 
 Then it runs `realm/build_realm.py`, which writes
 `realm/import/{{ cookiecutter.ifdd_keycloak_realm }}-realm.json` and

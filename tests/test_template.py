@@ -4,10 +4,13 @@ Run from the template root: pytest -q tests
 Regenerate the golden files after an intended change of the realm:
     IFDD_UPDATE_GOLDEN=1 pytest -q tests
 """
+import gzip
 import importlib
 import json
 import os
+import pty
 import re
+import select
 import shutil
 import stat
 import subprocess
@@ -432,7 +435,215 @@ def test_compose_is_valid(instance, name):
     {"ifdd_context_root": "ifdd_x.de"},
     # title in a TOML string; with an own slug, so that only the name check applies
     {"ifdd_keycloak_prj_name": "IFDD\\Keycloak", "ifdd_keycloak_prj_slug": "kc"},
+    # backup: pg_dump must match the server's major version
+    {"ifdd_keycloak_backup_image": "prodrigestivill/postgres-backup-local:17"},
+    {"ifdd_keycloak_backup_image": "prodrigestivill/postgres-backup-local"},
+    {"ifdd_keycloak_postgres_image": "postgres:latest"},
+    {"ifdd_keycloak_backup_schedule": "@every ${HOURS}h"},   # compose would interpolate
+    {"ifdd_keycloak_backup_schedule": ""},
+    {"ifdd_keycloak_backup_timezone": "Europe/ Berlin"},
+    {"ifdd_keycloak_backup_keep_days": "seven"},
 ])
 def test_pre_hook_rejects(tmp_path, extra):
     with pytest.raises(FailedHookException):
         render(tmp_path, **extra)
+
+
+# --- backup and restore -----------------------------------------------------------
+
+RESTORE = "adm_backup_restore.sh"
+
+
+def env_of(inst):
+    return dict(line.split("=", 1) for line in (inst / ".env").read_text().splitlines()
+                if line and not line.startswith("#"))
+
+
+def test_backup_service(instance, fixture_name):
+    ctx = json.loads((ROOT / "cookiecutter.json").read_text())
+    ctx.update(yaml.safe_load(fixture_name.read_text())["default_context"])
+    backup = yaml.safe_load((instance / "docker-compose-production.yml").read_text())["services"]["backup"]
+    assert backup["image"] == ctx["ifdd_keycloak_backup_image"]
+    # the host user that owns ./backups, required from .env
+    assert backup["user"] == "${IFDD_KEYCLOAK_BACKUP_UID:?set in .env}:${IFDD_KEYCLOAK_BACKUP_GID:?set in .env}"
+    env = backup["environment"]
+    assert env["POSTGRES_HOST"] == "postgres" and env["POSTGRES_DB"] == env["POSTGRES_USER"] == "keycloak"
+    assert env["POSTGRES_PASSWORD"] == "${IFDD_KEYCLOAK_DB_PASSWORD:?set in .env}"
+    assert env["SCHEDULE"] == ctx["ifdd_keycloak_backup_schedule"]
+    assert env["TZ"] == ctx["ifdd_keycloak_backup_timezone"]
+    assert env["BACKUP_ON_START"] == "TRUE"
+    for unit in ("days", "weeks", "months"):
+        assert env[f"BACKUP_KEEP_{unit.upper()}"] == ctx[f"ifdd_keycloak_backup_keep_{unit}"]
+    # a directory of the instance, never created by Docker (it would belong to root)
+    assert backup["volumes"] == [{"type": "bind", "source": "./backups", "target": "/backups",
+                                  "bind": {"create_host_path": False}}]
+    assert backup["networks"] == ["db"] and "labels" not in backup and "ports" not in backup
+    assert backup["depends_on"] == {"postgres": {"condition": "service_healthy"}}
+    assert backup["cap_drop"] == ["ALL"] and backup["security_opt"] == ["no-new-privileges:true"]
+    assert backup["restart"] == "always"
+
+
+def test_no_backup_service_in_development(instance):
+    services = yaml.safe_load((instance / "docker-compose-development.yml").read_text())["services"]
+    assert set(services) == {"postgres", "keycloak"}
+
+
+def test_backup_values_of_the_instance(tmp_path):
+    inst = render(tmp_path, ifdd_keycloak_backup_schedule="0 30 2 * * *",
+                  ifdd_keycloak_backup_timezone="Europe/Berlin", ifdd_keycloak_backup_keep_days="14",
+                  ifdd_keycloak_backup_keep_weeks="8", ifdd_keycloak_backup_keep_months="12")
+    env = yaml.safe_load((inst / "docker-compose-production.yml").read_text())["services"]["backup"]["environment"]
+    assert (env["SCHEDULE"], env["TZ"]) == ("0 30 2 * * *", "Europe/Berlin")
+    assert (env["BACKUP_KEEP_DAYS"], env["BACKUP_KEEP_WEEKS"], env["BACKUP_KEEP_MONTHS"]) == ("14", "8", "12")
+
+
+def test_backup_directory_and_owner(instance):
+    backups = instance / "backups"
+    assert backups.is_dir() and stat.S_IMODE(backups.stat().st_mode) == 0o700
+    env = env_of(instance)
+    assert (env["IFDD_KEYCLOAK_BACKUP_UID"], env["IFDD_KEYCLOAK_BACKUP_GID"]) == \
+        (str(os.getuid()), str(os.getgid()))
+    assert "backups/" in (instance / ".gitignore").read_text().splitlines()
+
+
+def test_hook_refuses_root(instance):
+    """As root, the backup container would write the dumps as root."""
+    (instance / ".env").unlink()
+    (instance / "backups").rmdir()
+    code = ("import os, runpy; os.getuid = lambda: 0; "
+            f"runpy.run_path({str(ROOT / 'hooks' / 'post_gen_project.py')!r}, run_name='__main__')")
+    result = subprocess.run([sys.executable, "-c", code], cwd=instance, capture_output=True, text=True)
+    assert result.returncode == 1 and "root" in result.stderr
+    assert not (instance / ".env").exists()
+
+
+def test_existing_backup_directory_is_kept(instance):
+    backups = instance / "backups"
+    backups.chmod(0o750)
+    (backups / "keycloak-latest.sql.gz").write_bytes(b"x")
+    subprocess.run([sys.executable, str(ROOT / "hooks" / "post_gen_project.py")], cwd=instance, check=True)
+    assert stat.S_IMODE(backups.stat().st_mode) == 0o750
+    assert (backups / "keycloak-latest.sql.gz").read_bytes() == b"x"
+
+
+def test_restore_script_is_executable_and_parses(instance):
+    script = instance / RESTORE
+    assert script.stat().st_mode & stat.S_IXUSR
+    subprocess.run(["bash", "-n", str(script)], check=True)
+    if shutil.which("shellcheck"):
+        subprocess.run(["shellcheck", str(script)], check=True)
+
+
+# A stand-in for docker: logs every call and plays the containers of the
+# compose project. STUB_FAIL_LOAD makes the load of the dump fail.
+DOCKER_STUB = r"""#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$STUB_LOG"
+args=" $* "
+case "$args" in
+  *" exec -T postgres psql "*"pg_database"*) echo "${STUB_DB_EXISTS-1}" ;;
+  *" exec -T postgres psql "*"ON_ERROR_STOP=1"*)
+      cat > "$STUB_LOADED"; [ -z "$STUB_FAIL_LOAD" ] || { echo "ERROR: broken" >&2; exit 3; } ;;
+  *" exec -T postgres pg_dump "*) echo "-- the database before the restore" ;;
+esac
+exit 0
+"""
+
+
+def run_restore(inst, tmp_path, *args, answer="restore", tty=True, **env):
+    """Run the restore script with the docker stub, on a pseudo terminal."""
+    bindir = tmp_path / "stub-bin"
+    bindir.mkdir(exist_ok=True)
+    stub = bindir / "docker"
+    stub.write_text(DOCKER_STUB)
+    stub.chmod(0o755)
+    log, loaded = tmp_path / "docker.log", tmp_path / "loaded.sql"
+    environ = dict(os.environ, PATH=f"{bindir}:{os.environ['PATH']}", STUB_LOG=str(log),
+                   STUB_LOADED=str(loaded), **env)
+    cmd = [str(inst / RESTORE), *args]
+    if not tty:
+        result = subprocess.run(cmd, env=environ, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        return result.returncode, result.stdout + result.stderr, log, loaded
+    pid, fd = pty.fork()
+    if pid == 0:                         # child: never return into pytest
+        try:
+            os.chdir(tmp_path)
+            os.execvpe(cmd[0], cmd, environ)
+        finally:
+            os._exit(127)
+    out, sent = b"", False
+    while select.select([fd], [], [], 30)[0]:
+        try:
+            chunk = os.read(fd, 4096)
+        except OSError:
+            break
+        if not chunk:
+            break
+        out += chunk
+        if not sent and b'Type "restore"' in out:
+            os.write(fd, answer.encode() + b"\n")
+            sent = True
+    _, status = os.waitpid(pid, 0)
+    return os.waitstatus_to_exitcode(status), out.decode(errors="replace"), log, loaded
+
+
+def calls(log):
+    return [line.split(" ", 3)[-1] for line in log.read_text().splitlines()] if log.exists() else []
+
+
+@pytest.fixture
+def dump(tmp_path):
+    path = tmp_path / "keycloak-20261021.sql.gz"
+    path.write_bytes(gzip.compress(b"-- the dump\nSELECT 1;\n"))
+    return path
+
+
+def test_restore(instance, tmp_path, dump):
+    code, out, log, loaded = run_restore(instance, tmp_path, str(dump))
+    assert code == 0, out
+    lines = log.read_text().splitlines()
+    assert all(line.startswith("compose -f docker-compose-production.yml ") for line in lines)
+    steps = [line.split(" ", 3)[3] for line in lines]
+    assert steps[0].startswith("exec -T postgres pg_isready")
+    assert steps[1] == "stop keycloak backup"
+    assert [s.split()[3] for s in steps[2:7]] == ["psql", "pg_dump", "dropdb", "createdb", "psql"]
+    assert steps[4].endswith("--force keycloak") and steps[5].endswith("-O keycloak keycloak")
+    assert steps[7] == "up -d keycloak backup" and len(steps) == 8
+    assert loaded.read_text() == "-- the dump\nSELECT 1;\n"
+    safety = list((instance / "backups" / "pre-restore").glob("keycloak-*.sql.gz"))
+    assert len(safety) == 1 and stat.S_IMODE(safety[0].stat().st_mode) == 0o600
+    assert gzip.decompress(safety[0].read_bytes()) == b"-- the database before the restore\n"
+
+
+def test_restore_without_a_database(instance, tmp_path, dump):
+    """An interrupted restore can leave no database: restore anyway, without a safety dump."""
+    code, out, log, _ = run_restore(instance, tmp_path, str(dump), STUB_DB_EXISTS="")
+    assert code == 0, out
+    assert not any(" pg_dump " in f" {c} " for c in calls(log))
+    assert not (instance / "backups" / "pre-restore").exists()
+
+
+def test_restore_failure_keeps_keycloak_stopped(instance, tmp_path, dump):
+    code, out, log, _ = run_restore(instance, tmp_path, str(dump), STUB_FAIL_LOAD="1")
+    assert code != 0
+    assert not any(c.startswith("up ") for c in calls(log))
+    assert "Keycloak stays stopped" in out and "backups/pre-restore/keycloak-" in out
+
+
+@pytest.mark.parametrize("answer", ["", "yes", "Restore"])
+def test_restore_needs_the_confirmation(instance, tmp_path, dump, answer):
+    code, out, log, _ = run_restore(instance, tmp_path, str(dump), answer=answer)
+    assert code == 1 and "nothing changed" in out
+    assert not any(c.startswith(("stop", "exec -T postgres dropdb")) for c in calls(log))
+
+
+def test_restore_refuses(instance, tmp_path, dump):
+    broken = tmp_path / "broken.sql.gz"
+    broken.write_bytes(dump.read_bytes()[:-8])                      # truncated
+    for args, tty, message in [((str(broken),), True, "not a complete gzip file"),
+                               ((str(tmp_path / "missing.sql.gz"),), True, "cannot read"),
+                               ((str(dump),), False, "needs a terminal")]:
+        code, out, log, _ = run_restore(instance, tmp_path, *args, tty=tty)
+        assert code == 1 and message in out
+        assert calls(log) == []
+    code, out, _, _ = run_restore(instance, tmp_path, tty=False)
+    assert code == 2 and "usage" in out

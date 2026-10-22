@@ -40,6 +40,13 @@ VALUES = {
     "ifdd_keycloak_group_nodes_privileged": "{{ cookiecutter.ifdd_keycloak_group_nodes_privileged }}",
     "ifdd_keycloak_proxy_gate_hosts": "{{ cookiecutter.ifdd_keycloak_proxy_gate_hosts }}",
     "ifdd_keycloak_image": "{{ cookiecutter.ifdd_keycloak_image }}",
+    "ifdd_keycloak_postgres_image": "{{ cookiecutter.ifdd_keycloak_postgres_image }}",
+    "ifdd_keycloak_backup_image": "{{ cookiecutter.ifdd_keycloak_backup_image }}",
+    "ifdd_keycloak_backup_schedule": "{{ cookiecutter.ifdd_keycloak_backup_schedule }}",
+    "ifdd_keycloak_backup_timezone": "{{ cookiecutter.ifdd_keycloak_backup_timezone }}",
+    "ifdd_keycloak_backup_keep_days": "{{ cookiecutter.ifdd_keycloak_backup_keep_days }}",
+    "ifdd_keycloak_backup_keep_weeks": "{{ cookiecutter.ifdd_keycloak_backup_keep_weeks }}",
+    "ifdd_keycloak_backup_keep_months": "{{ cookiecutter.ifdd_keycloak_backup_keep_months }}",
     "ifdd_context_root": "{{ cookiecutter.ifdd_context_root }}",
 }
 
@@ -84,6 +91,29 @@ if not all(HOST.match(h) for h in gate_hosts) or len(set(gate_hosts)) != len(gat
     errors.append("ifdd_keycloak_proxy_gate_hosts: comma-separated, distinct host names without scheme")
 if not re.match(r"^[^:@]+:[0-9][0-9A-Za-z.-]*$", VALUES["ifdd_keycloak_image"].rsplit("/", 1)[-1]):
     errors.append("ifdd_keycloak_image: needs a version tag (it selects the built-in scopes of the realm)")
+
+# Backup service: pg_dump must not be older than the server it dumps, so the
+# backup image (built on the official postgres image) needs the same major
+# version as the database image.
+def major(image):
+    match = re.match(r"^([0-9]+)", image.rsplit("/", 1)[-1].partition(":")[2])
+    return match.group(1) if match else None
+
+if major(VALUES["ifdd_keycloak_postgres_image"]) is None:
+    errors.append("ifdd_keycloak_postgres_image: needs a tag that starts with the major version, e.g. postgres:18")
+if major(VALUES["ifdd_keycloak_backup_image"]) != major(VALUES["ifdd_keycloak_postgres_image"]):
+    errors.append("ifdd_keycloak_backup_image: needs a tag with the major version of "
+                  "ifdd_keycloak_postgres_image (pg_dump must match the server)")
+# A cron expression or a descriptor (@daily, @every 6h); no quotes, no '$'
+# (compose would interpolate it).
+check("ifdd_keycloak_backup_schedule", re.compile(r"^@?[A-Za-z0-9*/,? -]+$"),
+      "a cron expression or a descriptor such as @daily")
+check("ifdd_keycloak_backup_timezone", re.compile(r"^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$"),
+      "a time zone name such as UTC or Europe/Berlin")
+for key in ("ifdd_keycloak_backup_keep_days", "ifdd_keycloak_backup_keep_weeks",
+            "ifdd_keycloak_backup_keep_months"):
+    check(key, re.compile(r"^[0-9]+$"), "a whole number")
+
 if VALUES["ifdd_keycloak_realm"] == "master":
     errors.append("ifdd_keycloak_realm: the master realm cannot be imported")
 if not VALUES["ifdd_oidc_realm"].rstrip("/").endswith("/realms/" + VALUES["ifdd_keycloak_realm"]):

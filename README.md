@@ -27,7 +27,8 @@ cruft create --no-input --checkout <tag> \
 ```
 
 `.env` holds the generated secrets; the skip list keeps it out of every
-later `cruft update`.
+later `cruft update`. Run it as the user who is to own the database dumps,
+not as root (see "Backup and restore").
 
 ## Variables
 
@@ -40,6 +41,10 @@ expect without repeating values.
 | `ifdd_keycloak_prj_name`, `ifdd_keycloak_prj_slug` | `IFDD Keycloak`, derived | name, also the title of the login pages (`display_name` in `realm/values.toml`); the slug names the directory and the Traefik router |
 | `ifdd_keycloak_image` | `quay.io/keycloak/keycloak:26.8.0` | Keycloak image; its tag selects the built-in scopes (`realm/ifdd_realm/builtin/keycloak-<tag>.json`) |
 | `ifdd_keycloak_postgres_image` | `postgres:18` | PostgreSQL image (Keycloak 26.8 supports 14 to 18) |
+| `ifdd_keycloak_backup_image` | `prodrigestivill/postgres-backup-local:18` | image of the backup service; its tag must start with the major version of the PostgreSQL image |
+| `ifdd_keycloak_backup_schedule` | `@daily` | when the backup service dumps the database: a cron expression (five fields, or six with seconds first) or a descriptor such as `@daily`, `@every 6h` |
+| `ifdd_keycloak_backup_timezone` | `UTC` | time zone of the schedule and of the dates in the file names |
+| `ifdd_keycloak_backup_keep_days`, `_keep_weeks`, `_keep_months` | `7`, `4`, `6` | how long the daily, weekly and monthly dumps are kept |
 | `ifdd_oidc_realm` | `https://keycloak.example.org/realms/ifdd` | realm URL the services use (issuer) |
 | `ifdd_keycloak_host`, `ifdd_keycloak_realm` | derived from `ifdd_oidc_realm` | public host (default for `IFDD_KEYCLOAK_HOST`) and realm name |
 | `ifdd_keycloak_dev_port` | `8096` | port on 127.0.0.1 in development |
@@ -118,31 +123,6 @@ Origin: a partial export of Keycloak 26.5.0, compared with a fresh realm of
 | Roles for ifdd-ui | the backend client's own client roles also in the ID token and the userinfo response (mapper on the client); the access token is unchanged, ifdd-be keeps reading it and accepts only access tokens (`typ` = `Bearer`) |
 | Realm | refresh token rotation, brute force protection, password policy (12 characters, not the user name), login events (30 days), admin events without representations; token lifespans unchanged |
 
-Checked against Keycloak 26.8.0 (start import, real code flow with PKCE,
-client credentials, admin API): 28 checks, including refused requests
-without PKCE, with `response_type=token`, with other redirects, with the
-password grant and with `scope=offline_access`; roles in the tokens for
-users without group and in each node group and for each service account;
-rejected reuse of a refresh token; lockout after quick failures; stored
-login and admin events.
-
-Found while testing against Keycloak 26.8.0 (start import):
-
-- A `js` policy stops the server and rolls back the whole import.
-- A `clientScopes` list without the built-in scopes makes Keycloak create
-  none of them; hence the data file per Keycloak version.
-- Without `defaultRole` Keycloak creates `default-roles-<realm>-1`.
-- Keycloak adds `offline_access`, `uma_authorization` and two account roles
-  to the default role on import.
-- An unset `${VAR}` stays literal; the compose files require each secret.
-- The built-in scope `roles` puts the client roles (`resource_access`) into
-  the access token only; the backend client therefore has its own mapper for
-  ID token and userinfo, which ifdd-ui reads (`user.profile`).
-- An ID token of the backend client carries the same `aud` as its access
-  token; resource servers must tell them apart by `typ` (`ID` / `Bearer`).
-
-Not verified: the container images themselves, PostgreSQL 18 (tests used 16).
-
 ## Context patterns
 
 ifdd-be-core gives domain contexts (dotted names such as
@@ -157,17 +137,6 @@ mapping, as their full scope is off). People get patterns only through
 groups, together with a node group for read or write. Further patterns, each
 with its group `ifdd_ctx_<pattern>`, are created in a running realm with
 `keycloak_add_context_role.py` of the meta repository.
-
-Dotted names were checked against the Keycloak 26.8.0 distribution: a client
-role `grid.example.ifdd.de` and a group `ifdd_ctx_grid.example.ifdd.de`
-were created through the admin API, and a member's access token carried the
-role in `resource_access.<backend client>.roles`. The realm of this template
-(fixture `ifddtest`) was imported: the client-credentials tokens of
-`ifdd-ct`, `ifdd-ts` and `ifdd-api-script` carry `ifdd.de` there, the token
-of `ifdd-user-admin` does not.
-The template tests (120) pass; the new ones (`test_context_root`,
-`test_another_context_root`, three pre-hook cases) fail against the previous
-template. Not checked: the container image.
 
 ## The user admin client
 
@@ -184,54 +153,39 @@ built-in client role the realm may grant.
 any user into any group (including the wf admin group), change, disable and
 delete users, and create groups. Guard the secret like an admin password.
 
-### Honesty notes
+## Backup and restore
 
-Documentation `docs/` (2026-10-13): rendered with cookiecutter 2.7.1 for the
-three fixtures and with the `cookiecutter_all.yaml` of the meta repository;
-`tests/check_docs.py` passes for each (Sphinx 9.1.0, myst-parser 5.1.0,
-sphinxcontrib-mermaid 2.1.1, Python 3.13), no rendered page contains a
-placeholder, and the template tests pass (123). The workflow file passes
-actionlint 1.7.12; the workflow itself has not run. Content: taken from the
-previous instance README, this README, the compose files and the realm
-model; what has not been tested is marked as such in the pages (backup and
-restore, upgrades with existing data, the admin console steps for existing
-realms). Also checked (2026-10-13): one Sphinx project per language with the
-pages of all ten service templates (rendered with `cookiecutter_all.yaml`), the
-instance chapter of the meta repository and ifdd-be-core with its OpenAPI
-document builds with `-W` and no suppressed warnings, so every cross
-reference resolves; the Mermaid diagrams of all services, and of the option
-variants of the fixtures, render in headless Chromium 141.0.7390.37
-(Playwright 1.56.0, Mermaid 11.12.1 served locally).
+The production compose file has a service `backup` with the image
+`prodrigestivill/postgres-backup-local`
+([docker-postgres-backup-local](https://github.com/prodrigestivill/docker-postgres-backup-local),
+MIT license). It runs `pg_dump` of the database on the schedule
+`ifdd_keycloak_backup_schedule` and on every start, and keeps daily, weekly
+and monthly dumps for the times of the `ifdd_keycloak_backup_keep_*`
+variables. Its image is built on the official PostgreSQL image, so its
+`pg_dump` has the version of its tag; the pre-generation hook requires the
+same major version as `ifdd_keycloak_postgres_image`. The development compose
+file has no backup service.
 
-Backend redirect (2026-10-13): the realm file of `tests/fixtures/ifddtest.yaml`
-with the exact redirect `https://rest/docs/oauth2-redirect` was imported into
-the Keycloak 26.8.0 distribution (`start-dev`, behind Traefik v3.7.13);
-"Authorize" in the Swagger UI of ifdd-be-core completed the code flow with
-PKCE through that URI in headless Chromium. Not checked: the admin console
-steps for an existing realm.
+The dumps go to `backups/` of the instance, a bind mount, not a Docker
+volume. The service runs as the user and group of
+`IFDD_KEYCLOAK_BACKUP_UID` and `IFDD_KEYCLOAK_BACKUP_GID` in `.env`, so the
+dumps belong to a user of the host. The post-generation hook writes the ids
+of the user who generates the instance (`<<host:uid>>`, `<<host:gid>>` in
+`dotenv.dist`), refuses to run as root, and creates `backups/` with mode
+0700. Compose does not create a missing `backups/`
+(`create_host_path: false`), because Docker would create it for root.
+`backups/` is in the instance's `.gitignore`.
 
-Tested against the Keycloak 26.8.0 distribution (`start-dev`, realm
-imported from this template, admin REST API):
+`adm_backup_restore.sh DUMP_FILE` restores a dump: it checks the file, asks
+to type `restore`, stops Keycloak and the backup service, saves the current
+database to `backups/pre-restore/`, recreates the database, loads the dump
+and starts both again. The instance documentation (page `operations`)
+describes both.
 
-- `manage-users` alone is enough to find users and groups, create a user
-  with a password, reset a password and add a user to a group. With
-  `query-groups` alone, the group search returns an empty list; `view-users`,
-  `query-users` and `query-groups` add nothing the script needs.
-- The token of the client carries `resource_access.realm-management.roles =
-  ["manage-users"]` and no realm roles; the password grant is refused.
-- With `manage-users`, the client could also change, disable and delete a
-  user and create a group (204/201); reading clients or realm roles was
-  refused (403). Not tested: whether it can map roles to users or groups.
-- Keycloak 26's declarative user profile requires e-mail, first and last
-  name for users: a user created without them cannot finish a login before
-  entering them ("Account is not fully set up" for the password grant).
-- The `kcadm.sh` commands for the user admin client in an existing realm
-  (instance documentation, page `realm`) were run with `kcadm.sh` of the distribution against
-  `http://localhost:8080`; the result matched the imported client (same
-  token content, password grant refused). Not tested: running them inside
-  the container, with `KC_HOSTNAME` set.
-
-Not verified: the container images.
+Existing instances get the service with `cruft update`, but `.env` is on the
+skip list and Git keeps no empty directory: add `IFDD_KEYCLOAK_BACKUP_UID`
+and `IFDD_KEYCLOAK_BACKUP_GID` (values of `id -u` and `id -g`) to `.env`, and
+create `backups/` with `mkdir -m 700 backups`.
 
 ## Documentation of the instance (`docs/`)
 
@@ -266,17 +220,6 @@ with `-W` (configuration `tests/docs/conf.py`, versions
 `tests/docs/requirements.txt`). `template-test.yml` runs it for every
 fixture.
 
-Realm overview as a Sphinx page and role description (2026-10-14): rendered
-with cookiecutter 2.7.1 for the three fixtures and the `cookiecutter_all.yaml`;
-`realm/OVERVIEW.md` of each builds with Sphinx 9.1.0 and myst-parser 5.1.0
-with `-W` on its own, and inside the full documentation of all services in en
-and de; the `<br>` in table cells survive into the HTML. The template tests
-(123) pass after regenerating the golden files; before, six golden
-comparisons failed on the new label and the corrected description. The
-description change is not checked against a running Keycloak (the
-`ifddtest.json` golden file differs from the imported one only in that
-text). The workflow passes actionlint 1.7.12; it has not run.
-
 ## Tests
 
 ```bash
@@ -284,13 +227,13 @@ pytest -q tests                      # render fixtures, build, validate, hooks, 
 IFDD_UPDATE_GOLDEN=1 pytest -q tests # after an intended change of the realm
 ```
 
-`tests/golden/` holds the realm files and overviews of the fixtures; `ifddtest.json` is the
-file that was imported into Keycloak 26.8.0 and checked with real tokens.
+`tests/golden/` holds the realm files and overviews of the fixtures.
 
-The login theme was checked with the realm of the fixture `ifddtest` in the
-Keycloak 26.8.0 distribution, in `start-dev` and in `start` (dev-file database):
-headless Chromium 141 (Playwright), light and dark mode, `ifdd.css` and the
-parent's styles loaded, heading from the display name, no console errors. A
-second realm without `loginTheme`, imported from a further values file, showed
-the default theme. Not checked: the container image, the proxy in front, other
-browsers, and the realm with real tokens after the change.
+Run the tests as a normal user: as root, the post-generation hook refuses to
+generate an instance (see "Backup and restore"), so every rendering fails.
+
+## AI assistance
+
+Some parts of this repository, in particular the tests, the test data and the
+documentation, were developed or improved with the help of large language
+models (LLMs). All changes were reviewed and released by the maintainer.

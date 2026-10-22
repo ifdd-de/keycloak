@@ -1,5 +1,40 @@
 # Changelog
 
+## [Unreleased]
+
+- Backup of the database: a service `backup` in the production compose file
+  (image `prodrigestivill/postgres-backup-local`) runs `pg_dump` on a schedule
+  and on every start, and keeps daily, weekly and monthly dumps in `backups/`
+  of the instance, a bind mount, not a volume. New variables
+  `ifdd_keycloak_backup_image` (default
+  `prodrigestivill/postgres-backup-local:18`, same major version as
+  `ifdd_keycloak_postgres_image`, checked by the pre-generation hook),
+  `ifdd_keycloak_backup_schedule` (`@daily`), `ifdd_keycloak_backup_timezone`
+  (`UTC`), `ifdd_keycloak_backup_keep_days`, `_keep_weeks`, `_keep_months`
+  (`7`, `4`, `6`).
+- The backup service runs as the host user of the new `.env` entries
+  `IFDD_KEYCLOAK_BACKUP_UID` and `IFDD_KEYCLOAK_BACKUP_GID`. The
+  post-generation hook writes the ids of the user who generates the instance
+  (new placeholders `<<host:uid>>`, `<<host:gid>>`), refuses to run as root,
+  and creates `backups/` with mode 0700. `backups/` is in the instance's
+  `.gitignore`.
+- `adm_backup_restore.sh DUMP_FILE` restores a dump: confirmation, safety dump
+  of the current database in `backups/pre-restore/`, new database, Keycloak
+  stays stopped if loading fails.
+- Documentation: backup and restore in `operations`, new section in
+  `troubleshooting`, entries in `setup`, `security`, `reference`, `index` and
+  `build-release`. The former note that a restore needs the database password
+  of the old `.env` was wrong: a dump of one database holds no roles or
+  passwords.
+- Instance CI: the compose check replaces the new placeholders and creates an
+  empty `backups/`.
+- READMEs: a section on the use of large language models; the instance README
+  has no honesty notes any more, the template README no test reports.
+- Upgrade: `cruft update` leaves `.env` alone and Git keeps no empty
+  directory. Before the next `docker compose up` add
+  `IFDD_KEYCLOAK_BACKUP_UID` and `IFDD_KEYCLOAK_BACKUP_GID` (values of `id -u`
+  and `id -g`) to `.env`, and run `mkdir -m 700 backups`.
+
 ## [26.10.2] - 2026-10-14
 
 - `realm/OVERVIEW.md` is a Sphinx page: it starts with the MyST label

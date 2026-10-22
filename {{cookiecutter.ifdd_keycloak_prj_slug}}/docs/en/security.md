@@ -41,12 +41,14 @@ everywhere.
 | admin password | `.env` | for the first start only |
 | database password | `.env` | set once; the database keeps it |
 | client secrets | `.env`, then in Keycloak and in the services | read by the first import; rotate in the admin console |
+| database dumps | `backups/` | hold password hashes, sessions and the client secrets of the database; mode 0700, owned by the backup user |
 
 `.env` is created with generated values (32 to 48 characters with lower and
 upper case letters and digits), is never committed and is on the skip
 list. The compose files require every secret (`${...:?}`): an unset variable
 would otherwise become the literal secret in the realm. `realm/` holds no
-passwords and no personal users.
+passwords and no personal users. `backups/` is not committed either; a copy
+of it on another system needs the same protection as the database.
 
 ## Rules of the realm
 
@@ -64,7 +66,7 @@ The realm follows RFC 9700 (OAuth 2.0 Security Best Current Practice):
 | logins | brute force protection with Keycloak's thresholds; password policy: at least 12 characters, not the user name |
 | events | login events kept 30 days; admin events without representations |
 
-The template README lists the checks of these rules against Keycloak 26.8.0.
+The tests of the template check these rules in the generated realm file.
 Details per client are in {ref}`ifdd-keycloak-realm` and in
 `realm/OVERVIEW.md`.
 
@@ -72,7 +74,10 @@ Details per client are in {ref}`ifdd-keycloak-realm` and in
 
 Keycloak runs with all capabilities dropped (`cap_drop: ALL`) and
 `no-new-privileges`, PostgreSQL with `no-new-privileges`. PostgreSQL is only
-on the network `db`, which the proxy does not reach.
+on the network `db`, which the proxy does not reach. The backup service runs
+as the host user of `IFDD_KEYCLOAK_BACKUP_UID`, not as root, without
+capabilities and with `no-new-privileges`, on the network `db` only; it
+knows the database password.
 
 The management port 9000 (`/health`, `/metrics`) is not routed by the proxy,
 but containers on the same networks can reach it.

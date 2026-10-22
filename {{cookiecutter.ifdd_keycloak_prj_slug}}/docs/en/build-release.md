@@ -7,6 +7,7 @@
 |---|---|
 | `keycloak` | `{{ cookiecutter.ifdd_keycloak_image }}` |
 | `postgres` | `{{ cookiecutter.ifdd_keycloak_postgres_image }}` |
+| `backup` | `{{ cookiecutter.ifdd_keycloak_backup_image }}` |
 
 The instance builds no image of its own. Keycloak runs with `start`, not
 `start --optimized`: it builds itself on every start, which makes the start
@@ -33,6 +34,7 @@ and the generated files together. What the script models is described in
 |---|---|---|
 | Keycloak | `{{ cookiecutter.ifdd_keycloak_image }}` | template variable `ifdd_keycloak_image` |
 | PostgreSQL | `{{ cookiecutter.ifdd_keycloak_postgres_image }}` | template variable `ifdd_keycloak_postgres_image` |
+| backup service | `{{ cookiecutter.ifdd_keycloak_backup_image }}` | template variable `ifdd_keycloak_backup_image`; same major version as PostgreSQL, because `pg_dump` must not be older than the server (the template refuses another one) |
 
 The tag of the Keycloak image selects the file of Keycloak's built-in client
 scopes (`realm/ifdd_realm/builtin/keycloak-<tag>.json`); the script refuses a
@@ -49,7 +51,7 @@ tested with Keycloak 26.8.0; the PostgreSQL tests used version 16.
 - **realm file**: `python3 realm/build_realm.py --check`, so a change of
   `values.toml` or `realm/ifdd_realm/` without the rebuilt files fails;
 - **compose files**: `docker compose config` for both, with dummy values
-  instead of the secrets.
+  instead of the secrets and an empty `backups/`.
 
 ## Release
 

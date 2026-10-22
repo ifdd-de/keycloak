@@ -7,6 +7,7 @@
 |---|---|
 | `keycloak` | `{{ cookiecutter.ifdd_keycloak_image }}` |
 | `postgres` | `{{ cookiecutter.ifdd_keycloak_postgres_image }}` |
+| `backup` | `{{ cookiecutter.ifdd_keycloak_backup_image }}` |
 
 Die Instanz baut kein eigenes Image. Keycloak läuft mit `start`, nicht mit
 `start --optimized`: Es baut sich bei jedem Start selbst, was den Start
@@ -33,6 +34,7 @@ erzeugten Dateien gemeinsam committen. Was das Skript modelliert, steht in
 |---|---|---|
 | Keycloak | `{{ cookiecutter.ifdd_keycloak_image }}` | Template-Variable `ifdd_keycloak_image` |
 | PostgreSQL | `{{ cookiecutter.ifdd_keycloak_postgres_image }}` | Template-Variable `ifdd_keycloak_postgres_image` |
+| Backup-Dienst | `{{ cookiecutter.ifdd_keycloak_backup_image }}` | Template-Variable `ifdd_keycloak_backup_image`; gleiche Hauptversion wie PostgreSQL, weil `pg_dump` nicht älter als der Server sein darf (das Template weist eine andere ab) |
 
 Der Tag des Keycloak-Images wählt die Datei mit den eingebauten Client Scopes
 von Keycloak (`realm/ifdd_realm/builtin/keycloak-<tag>.json`); eine Version
@@ -51,7 +53,7 @@ Version 16.
   an `values.toml` oder `realm/ifdd_realm/` ohne neu erzeugte Dateien
   scheitert;
 - **compose files**: `docker compose config` für beide, mit Platzhaltern
-  statt der Secrets.
+  statt der Secrets und einem leeren `backups/`.
 
 ## Freigabe
 

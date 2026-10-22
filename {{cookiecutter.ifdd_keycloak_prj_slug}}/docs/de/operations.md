@@ -21,12 +21,14 @@ Datenbank.
 |---|---|---|
 | `keycloak` | `GET /health/ready` auf dem Management-Port 9000, mit bash (das Image hat kein curl) | 15 s, 5 Versuche, Startphase 180 s |
 | `postgres` | `pg_isready -d keycloak -U keycloak` | 10 s, 10 Versuche |
+| `backup` | aus dem Image: `curl` auf seinen Port 8080, beantwortet vom Scheduler | 5 min |
 
 Mit `KC_METRICS_ENABLED` umfasst die Readiness die Datenbank; Keycloak wird
 also unhealthy, solange die Datenbank fehlt. Docker startet einen
 unhealthy-Container nicht von selbst neu; `docker compose ps` zeigt den
-Zustand. Beide Container starten mit `restart: always` neu, wenn sie sich
-beenden.
+Zustand. Alle Container starten mit `restart: always` neu, wenn sie sich
+beenden. Der Healthcheck von `backup` zeigt nur, dass der Scheduler läuft,
+nicht, ob der letzte Dump gelang; das steht im Log des Containers.
 
 ## Logs
 
@@ -56,18 +58,79 @@ Datenbank maßgeblich:
 
 ## Sicherung
 
-| Was | Wie |
-|---|---|
-| die Datenbank (Realm, Benutzer, Sitzungen, Events) | Volume `postgres-data`, zum Beispiel `docker compose -f docker-compose-production.yml exec postgres pg_dump -U keycloak keycloak > keycloak.sql` |
-| `.env` | Admin- und Datenbankpasswort, Client-Secrets |
+Der Dienst `backup` (`{{ cookiecutter.ifdd_keycloak_backup_image }}`)
+sichert die Datenbank `keycloak` mit `pg_dump`, während Keycloak weiterläuft.
+Die Dumps landen im Verzeichnis `backups/` dieser Instanz, einem gewöhnlichen
+Verzeichnis auf dem Host, keinem Docker-Volume:
 
-`realm/` liegt in Git; es enthält weder Benutzer noch das, was in der
-Admin-Konsole geändert wurde. Den Datenbank-Dump vor dem Start von Keycloak in
-eine leere Datenbank einspielen, mit dem Datenbankpasswort der `.env`, mit der
-sie angelegt wurde.
+| | Hier |
+|---|---|
+| Zeitplan | `{{ cookiecutter.ifdd_keycloak_backup_schedule }}`, Zeitzone `{{ cookiecutter.ifdd_keycloak_backup_timezone }}`; zusätzlich bei jedem Start des Containers |
+| Aufbewahrung | die täglichen Dumps {{ cookiecutter.ifdd_keycloak_backup_keep_days }} Tage, die wöchentlichen {{ cookiecutter.ifdd_keycloak_backup_keep_weeks }} Wochen, die monatlichen {{ cookiecutter.ifdd_keycloak_backup_keep_months }} Monate; jeder einzelne Dump 24 Stunden |
+| Eigentümer | der Benutzer des Hosts mit den IDs `IFDD_KEYCLOAK_BACKUP_UID` und `IFDD_KEYCLOAK_BACKUP_GID` aus `.env`; der Hook hat die des Benutzers eingetragen, der die Instanz erzeugt hat |
+
+```text
+backups/                                  Rechte 0700, vom Hook angelegt
+  last/keycloak-YYYYMMDD-HHMMSS.sql.gz    jeder Dump, 24 Stunden aufbewahrt
+  daily/keycloak-YYYYMMDD.sql.gz          der letzte Dump jedes Tages
+  weekly/keycloak-YYYYWW.sql.gz           der letzte Dump jeder ISO-Woche
+  monthly/keycloak-YYYYMM.sql.gz          der letzte Dump jedes Monats
+  */keycloak-latest.sql.gz                Verweis auf die neueste Datei des Ordners
+  pre-restore/keycloak-*.sql.gz           Sicherheits-Dumps des Restore-Skripts, nie gelöscht
+```
+
+Die Dateien in `daily/`, `weekly/` und `monthly/` sind harte Links auf einen
+Dump in `last/`; ein Dump belegt seinen Platz also nur einmal. Alte Dateien
+werden erst nach einem erfolgreichen Dump gelöscht. Ein Dump ist reines SQL,
+mit gzip komprimiert; er enthält Realms, Benutzer, Sitzungen und Events der
+Datenbank, aber nicht den Datenbankbenutzer `keycloak` und sein Passwort.
+
+Ein Dump sofort, etwa vor einer Änderung in der Admin-Konsole:
+
+```bash
+docker compose -f docker-compose-production.yml exec backup sh -c 'umask 077 && /backup.sh'
+```
+
+Ohne `umask` sind die Dateien eines solchen Aufrufs für alle beschreibbar; die
+geplanten Dumps nicht. `backups/` selbst ist nur seinem Eigentümer zugänglich.
+
+Nicht in den Dumps und eine eigene Kopie wert:
+
+| Was | Warum |
+|---|---|
+| `.env` | Admin- und Datenbankpasswort, Client-Secrets, die IDs des Backup-Benutzers |
+| `realm/` | in Git; enthält weder Benutzer noch das, was in der Admin-Konsole geändert wurde |
+
+Die Dumps bleiben auf diesem Host: Gegen den Verlust des Hosts `backups/` auf
+ein anderes System kopieren. Das macht die Instanz nicht.
+
+### Wiederherstellung
+
+```bash
+./adm_backup_restore.sh backups/daily/keycloak-YYYYMMDD.sql.gz
+```
+
+Das Skript prüft die Datei (`gzip -t`) und verlangt, `restore` einzutippen.
+Dann stoppt es `keycloak` und `backup`, sichert die aktuelle Datenbank nach
+`backups/pre-restore/`, löscht die Datenbank `keycloak` und legt sie neu an,
+spielt den Dump ein und startet beide Dienste wieder. PostgreSQL läuft weiter.
+Es braucht ein Terminal und die Container von `docker-compose-production.yml`.
+
+- Scheitert das Einspielen, bleibt Keycloak gestoppt, und das Skript nennt den
+  Sicherheits-Dump; diesen mit demselben Skript zurückspielen.
+- Datenbankbenutzer und Passwort stehen nicht im Dump: Die Wiederherstellung
+  arbeitet mit dem Passwort der aktuellen `.env`.
+- Keycloak nimmt die Client-Secrets aus der wiederhergestellten Datenbank. In
+  einer neuen Instanz brauchen die Dienste weiter die Secrets der alten (deren
+  `.env` oder die Admin-Konsole).
+- Benutzer, Sitzungen und die Änderungen aus der Admin-Konsole sind die des
+  Dumps.
 
 ```{note}
-Nicht getestet: Sicherung und Wiederherstellung der Datenbank.
+Getestet mit lokal gebauten Images: PostgreSQL 18.6 mit dem Entrypoint des
+offiziellen Images, das Backup-Image aus seinem Dockerfile, die Distribution
+von Keycloak 26.8.0. Nicht getestet: die veröffentlichten Images selbst, die
+Zeitzone im veröffentlichten Backup-Image und Docker unter macOS.
 ```
 
 ## Aktualisieren
