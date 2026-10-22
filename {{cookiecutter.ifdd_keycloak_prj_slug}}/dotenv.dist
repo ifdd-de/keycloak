@@ -4,7 +4,8 @@
 # Values of the form <<generate:...>> are replaced by random values when the
 # instance is generated (hooks/post_gen_project.py); <<generate:chars:48:aA0>>
 # means 48 characters with at least one lowercase letter, uppercase letter and
-# digit. An existing .env is never overwritten.
+# digit. <<host:uid>> and <<host:gid>> become the ids of the user who
+# generated the instance. An existing .env is never overwritten.
 
 # Public host of Keycloak, as routed by the proxy. Must match the issuer the
 # services expect: {{ cookiecutter.ifdd_oidc_realm }}
@@ -38,3 +39,9 @@ IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET=<<generate:chars:48:aA0>>
 IFDD_KEYCLOAK_TS_CLIENT_SECRET=<<generate:chars:48:aA0>>
 # {{ cookiecutter.ifdd_proxy_oidc_client_id }}: ifdd-proxy, secrets/oauth2_proxy_client_secret
 IFDD_KEYCLOAK_PROXY_CLIENT_SECRET=<<generate:chars:48:aA0>>
+
+# Owner of the database dumps in ./backups: the backup service runs with this
+# user and group id, so the files belong to the user on the host. Written when
+# the instance is generated; `id -u` and `id -g` give the values by hand.
+IFDD_KEYCLOAK_BACKUP_UID=<<host:uid>>
+IFDD_KEYCLOAK_BACKUP_GID=<<host:gid>>

@@ -19,7 +19,8 @@ jobs:
         run: python3 realm/build_realm.py --check
       - name: compose files are valid
         run: |
-          # dummy values; the real .env is not in git
-          sed -E 's/<<generate:[^>]*>>/ci-dummy-value/' dotenv.dist > .env
+          # dummy values; the real .env and backups/ are not in git
+          sed -E -e 's/<<generate:[^>]*>>/ci-dummy-value/' -e 's/<<host:(uid|gid)>>/1000/' dotenv.dist > .env
+          mkdir -p backups
           docker compose -f docker-compose-production.yml config -q
           docker compose -f docker-compose-development.yml config -q

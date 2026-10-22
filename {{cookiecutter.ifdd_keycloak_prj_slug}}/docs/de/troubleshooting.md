@@ -15,6 +15,18 @@ des Realms in der Admin-Konsole.
 | `unhealthy`, obwohl Keycloak läuft | die Datenbank fehlt (die Readiness umfasst sie); Docker startet unhealthy-Container nicht neu | die Datenbank wiederherstellen; `docker compose ps` zeigt beide |
 | `build_realm.py` scheitert an einer unbekannten Keycloak-Version | für diesen Image-Tag gibt es keine Datei mit eingebauten Scopes | eine Keycloak-Version nehmen, die das Template kennt |
 
+## Sicherung und Wiederherstellung
+
+| Symptom | Ursache | Abhilfe |
+|---|---|---|
+| `docker compose` bricht mit `IFDD_KEYCLOAK_BACKUP_UID ... set in .env` ab | die Instanz ist älter als der Backup-Dienst; `cruft update` lässt `.env` unberührt | `IFDD_KEYCLOAK_BACKUP_UID` und `IFDD_KEYCLOAK_BACKUP_GID` mit den Werten von `id -u` und `id -g` des Benutzers ergänzen, dem die Dumps gehören sollen |
+| `bind source path does not exist: .../backups` | `backups/` fehlt, etwa in einem frischen Klon oder nach dem Template-Update, das den Backup-Dienst brachte (Git hält keine leeren Verzeichnisse) | `mkdir -m 700 backups` als der Benutzer aus `IFDD_KEYCLOAK_BACKUP_UID` |
+| `backup` startet immer wieder neu, sein Log meldet `BACKUP_DIR points to a file or folder with insufficient permissions` | `backups/` gehört einem anderen Benutzer als `IFDD_KEYCLOAK_BACKUP_UID`, etwa root | es diesem Benutzer geben: `chown -R <uid>:<gid> backups` |
+| die Dumps entstehen zu einer unerwarteten Stunde | der Zeitplan läuft in der Zeitzone `TZ` des Containers; ein unbekannter Name fällt auf UTC zurück | `TZ` in der Compose-Datei und die Daten in den Dateinamen prüfen |
+| der Post-Generation-Hook bricht mit `refusing to run as root` ab | die Instanz wurde als root erzeugt | sie als der Benutzer erzeugen, dem die Dumps gehören sollen |
+| `adm_backup_restore.sh` meldet `needs a terminal to confirm` | es lief ohne Terminal, etwa aus cron oder einer Pipe | es in einer interaktiven Shell aufrufen |
+| die Wiederherstellung bricht mit `the restore failed; Keycloak stays stopped` ab | der Dump ließ sich nicht einspielen (siehe die Meldung von `psql` darüber) | den Sicherheits-Dump, den das Skript nennt, mit demselben Skript zurückspielen |
+
 ## Realm
 
 | Symptom | Ursache | Abhilfe |

@@ -40,6 +40,11 @@ Zufallswert:
 | `IFDD_KEYCLOAK_ADMIN_PASSWORD` | Passwort des temporären Admins `IFDD_KEYCLOAK_ADMIN_USER` im Master-Realm |
 | `IFDD_KEYCLOAK_DB_PASSWORD` | Passwort des Datenbankbenutzers `keycloak` |
 | `IFDD_KEYCLOAK_*_CLIENT_SECRET` | die Secrets der vertraulichen Clients, gelesen vom Realm-Import |
+| `IFDD_KEYCLOAK_BACKUP_UID`, `IFDD_KEYCLOAK_BACKUP_GID` | Benutzer- und Gruppen-ID des Benutzers, der die Instanz erzeugt; der Backup-Dienst schreibt die Dumps als dieser Benutzer |
+
+Er legt das Verzeichnis `backups/` (Rechte 0700) für die Dumps des
+Backup-Dienstes an. Als root bricht der Hook ab: Die Dumps gehörten sonst
+root. Die Instanz als der Benutzer erzeugen, dem sie gehören sollen.
 
 Danach führt er `realm/build_realm.py` aus, das
 `realm/import/{{ cookiecutter.ifdd_keycloak_realm }}-realm.json` und

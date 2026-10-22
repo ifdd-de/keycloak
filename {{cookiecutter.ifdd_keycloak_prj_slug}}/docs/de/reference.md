@@ -19,6 +19,8 @@ Template-Variable ist.
 | `realm/values_*.toml` | optional: Werte weiterer Realms, von Hand geschrieben |
 | `realm/OVERVIEW-<realm>.md` | erzeugt: die Übersicht eines weiteren Realms |
 | `themes/ifdd/` | Login-Theme des Realms, nur lesend in Keycloak eingehängt |
+| `adm_backup_restore.sh` | spielt einen Dump des Backup-Dienstes zurück ({ref}`ifdd-keycloak-operations`) |
+| `backups/` | die Dumps des Backup-Dienstes, in ihn eingebunden; vom Hook angelegt, nie committet |
 
 ## Umgebung (`.env`)
 
@@ -33,6 +35,7 @@ Template-Variable ist.
 | `IFDD_KEYCLOAK_USERADMIN_CLIENT_ID`, `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}`, erzeugt | Client `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}`; die ID ist für die Skripte des Meta-Repositorys |
 | `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | erzeugt | Client `{{ cookiecutter.ifdd_ts_oidc_client_id }}` |
 | `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | erzeugt | Client `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` |
+| `IFDD_KEYCLOAK_BACKUP_UID`, `IFDD_KEYCLOAK_BACKUP_GID` | IDs des Benutzers, der die Instanz erzeugt hat | Benutzer des Backup-Dienstes, Eigentümer der Dumps |
 
 Die Client-Secrets erreichen den Keycloak-Container als gleichnamige
 Umgebungsvariablen; die Realm-Datei verweist als Platzhalter auf sie.
@@ -55,10 +58,15 @@ Umgebungsvariablen; die Realm-Datei verweist als Platzhalter auf sie.
 |---|---|---|
 | `keycloak` | 8080 HTTP (vom Proxy geroutet), 9000 Management (`/health`, `/metrics`, nicht geroutet) | `db`, `{{ cookiecutter.ifdd_proxy_network }}` |
 | `postgres` | 5432 | `db` |
+| `backup` | 8080 Healthcheck seines Schedulers (nicht geroutet); `BACKUP_*`, `SCHEDULE`, `TZ` in der Compose-Datei gesetzt | `db` |
 
 | Volume | Inhalt |
 |---|---|
 | `postgres-data` | die Datenbank, eingebunden unter `/var/lib/postgresql` (PostgreSQL 18 hält seine Daten in einem versionierten Unterverzeichnis) |
+
+`backups/` ist ein Bind-Mount unter `/backups` von `backup`, kein Volume:
+`docker compose down --volumes` lässt es stehen. Compose legt es nicht an
+(`create_host_path: false`).
 
 Labels: der Router `{{ cookiecutter.ifdd_keycloak_prj_slug }}` mit der Regel
 `Host(<IFDD_KEYCLOAK_HOST>)`, Service-Port 8080, Middleware

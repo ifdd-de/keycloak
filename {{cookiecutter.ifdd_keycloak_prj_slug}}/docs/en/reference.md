@@ -19,6 +19,8 @@ variable.
 | `realm/values_*.toml` | optional: values of further realms, written by hand |
 | `realm/OVERVIEW-<realm>.md` | generated: the overview of a further realm |
 | `themes/ifdd/` | login theme of the realm, mounted read-only into Keycloak |
+| `adm_backup_restore.sh` | restores a dump of the backup service ({ref}`ifdd-keycloak-operations`) |
+| `backups/` | the dumps of the backup service, mounted into it; created by the hook, never committed |
 
 ## Environment (`.env`)
 
@@ -33,6 +35,7 @@ variable.
 | `IFDD_KEYCLOAK_USERADMIN_CLIENT_ID`, `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}`, generated | client `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}`; the ID is for the scripts of the meta repository |
 | `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | generated | client `{{ cookiecutter.ifdd_ts_oidc_client_id }}` |
 | `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | generated | client `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` |
+| `IFDD_KEYCLOAK_BACKUP_UID`, `IFDD_KEYCLOAK_BACKUP_GID` | ids of the user who generated the instance | user of the backup service, owner of the dumps |
 
 The client secrets reach the Keycloak container as environment variables of
 the same name; the realm file refers to them as placeholders.
@@ -55,10 +58,15 @@ the same name; the realm file refers to them as placeholders.
 |---|---|---|
 | `keycloak` | 8080 HTTP (routed by the proxy), 9000 management (`/health`, `/metrics`, not routed) | `db`, `{{ cookiecutter.ifdd_proxy_network }}` |
 | `postgres` | 5432 | `db` |
+| `backup` | 8080 health check of its scheduler (not routed); `BACKUP_*`, `SCHEDULE`, `TZ` set in the compose file | `db` |
 
 | Volume | Content |
 |---|---|
 | `postgres-data` | the database, mounted at `/var/lib/postgresql` (PostgreSQL 18 keeps its data in a versioned subdirectory) |
+
+`backups/` is a bind mount at `/backups` of `backup`, not a volume:
+`docker compose down --volumes` leaves it alone. Compose does not create it
+(`create_host_path: false`).
 
 Labels: the router `{{ cookiecutter.ifdd_keycloak_prj_slug }}` with the rule
 `Host(<IFDD_KEYCLOAK_HOST>)`, service port 8080, middleware

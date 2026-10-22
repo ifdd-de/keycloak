@@ -94,6 +94,46 @@ services:
       - "no-new-privileges:true"
     restart: always
 
+  backup:
+    # pg_dump of the database on a schedule, kept for days, weeks and months
+    # (https://github.com/prodrigestivill/docker-postgres-backup-local).
+    # The dumps go to ./backups; restore with ./adm_backup_restore.sh.
+    image: "{{ cookiecutter.ifdd_keycloak_backup_image }}"
+    # The host user that owns ./backups (written into .env by the hook), so the
+    # dumps belong to that user and not to root.
+    user: "${IFDD_KEYCLOAK_BACKUP_UID:?set in .env}:${IFDD_KEYCLOAK_BACKUP_GID:?set in .env}"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: "${IFDD_KEYCLOAK_DB_PASSWORD:?set in .env}"
+      SCHEDULE: "{{ cookiecutter.ifdd_keycloak_backup_schedule }}"
+      # Time zone of the schedule and of the dates in the file names.
+      TZ: "{{ cookiecutter.ifdd_keycloak_backup_timezone }}"
+      # Also a dump on every start of the container, e.g. before an upgrade.
+      BACKUP_ON_START: "TRUE"
+      BACKUP_KEEP_DAYS: "{{ cookiecutter.ifdd_keycloak_backup_keep_days }}"
+      BACKUP_KEEP_WEEKS: "{{ cookiecutter.ifdd_keycloak_backup_keep_weeks }}"
+      BACKUP_KEEP_MONTHS: "{{ cookiecutter.ifdd_keycloak_backup_keep_months }}"
+    volumes:
+      # A directory of the instance, not a volume. It must exist and belong to
+      # the user above; without it compose stops instead of creating it as root.
+      - type: bind
+        source: ./backups
+        target: /backups
+        bind:
+          create_host_path: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - db
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    restart: always
+
 volumes:
   postgres-data:
 

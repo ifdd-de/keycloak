@@ -21,6 +21,10 @@ The proxy must run first. Sign in to
 service its client secret from `.env`. The realm file is imported on the
 first start only; `realm/OVERVIEW.md` shows it as tables.
 
+The service `backup` dumps the database into `backups/` on the schedule
+`{{ cookiecutter.ifdd_keycloak_backup_schedule }}`;
+`./adm_backup_restore.sh <dump>` restores one.
+
 ## Documentation
 
 Setup, build and release, operations, security, troubleshooting, reference
@@ -33,18 +37,12 @@ The pages are Sphinx sources in MyST Markdown, meant to be copied into a
 documentation project that covers all services; GitHub shows them as plain
 Markdown.
 
-## Honesty notes
+## AI assistance
 
-The realm of this template was tested against the Keycloak 26.8.0
-distribution (start import, code flow with PKCE, client credentials, admin
-API); the README of the template `ifdd-de/keycloak` lists the checks. Not
-verified: the container images, PostgreSQL 18 (the tests used 16), backup
-and restore, and upgrades of Keycloak or PostgreSQL with existing data.
-
-The login theme `ifdd` was tested with the same distribution in `start-dev`
-and `start`: headless Chromium, light and dark mode, without console errors.
-Not tested: the theme in the container image, behind the proxy, and in
-browsers other than Chromium.
+Some parts of the template `ifdd-de/keycloak` this instance was generated
+from, in particular the tests, the test data and the documentation, were
+developed or improved with the help of large language models (LLMs). All
+changes were reviewed and released by the maintainer.
 
 ## License
 

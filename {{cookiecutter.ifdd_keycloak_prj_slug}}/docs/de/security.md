@@ -41,12 +41,15 @@ Schwäche überall.
 | Admin-Passwort | `.env` | nur für den ersten Start |
 | Datenbankpasswort | `.env` | einmal gesetzt; die Datenbank behält es |
 | Client-Secrets | `.env`, dann in Keycloak und in den Diensten | vom ersten Import gelesen; in der Admin-Konsole rotieren |
+| Datenbank-Dumps | `backups/` | enthalten Passwort-Hashes, Sitzungen und die Client-Secrets der Datenbank; Rechte 0700, Eigentümer ist der Backup-Benutzer |
 
 `.env` entsteht mit erzeugten Werten (32 bis 48 Zeichen mit Klein- und
 Großbuchstaben und Ziffern), wird nie committet und steht auf der Skip-Liste.
 Die Compose-Dateien verlangen jedes Secret (`${...:?}`): Eine nicht gesetzte
 Variable würde sonst zum wörtlichen Secret im Realm. `realm/` enthält keine
-Passwörter und keine persönlichen Benutzer.
+Passwörter und keine persönlichen Benutzer. Auch `backups/` wird nicht
+committet; eine Kopie davon auf einem anderen System braucht denselben Schutz
+wie die Datenbank.
 
 ## Regeln des Realms
 
@@ -64,15 +67,18 @@ Der Realm folgt RFC 9700 (OAuth 2.0 Security Best Current Practice):
 | Anmeldungen | Brute-Force-Schutz mit den Schwellen von Keycloak; Passwort-Policy: mindestens 12 Zeichen, nicht der Benutzername |
 | Events | Login-Events 30 Tage aufbewahrt; Admin-Events ohne Repräsentationen |
 
-Das README des Templates führt die Prüfungen dieser Regeln gegen Keycloak
-26.8.0 auf. Einzelheiten je Client stehen in {ref}`ifdd-keycloak-realm` und in
+Die Tests des Templates prüfen diese Regeln in der erzeugten Realm-Datei.
+Einzelheiten je Client stehen in {ref}`ifdd-keycloak-realm` und in
 `realm/OVERVIEW.md`.
 
 ## Container
 
 Keycloak läuft ohne alle Capabilities (`cap_drop: ALL`) und mit
 `no-new-privileges`, PostgreSQL mit `no-new-privileges`. PostgreSQL hängt nur
-im Netz `db`, das der Proxy nicht erreicht.
+im Netz `db`, das der Proxy nicht erreicht. Der Backup-Dienst läuft als der
+Benutzer des Hosts aus `IFDD_KEYCLOAK_BACKUP_UID`, nicht als root, ohne
+Capabilities und mit `no-new-privileges`, nur im Netz `db`; er kennt das
+Datenbankpasswort.
 
 Der Management-Port 9000 (`/health`, `/metrics`) wird vom Proxy nicht
 geroutet, ist aber für Container in denselben Netzen erreichbar.

@@ -8,3 +8,6 @@ __pycache__/
 
 # Local builds of the documentation (docs/en, docs/de)
 docs/_build/
+
+# Database dumps of the backup service (docker-compose-production.yml)
+backups/

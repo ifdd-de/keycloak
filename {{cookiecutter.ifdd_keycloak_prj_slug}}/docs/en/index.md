@@ -14,8 +14,8 @@ and secure it.
 | Public URL | `https://{{ cookiecutter.ifdd_keycloak_host }}` (routed by the proxy) |
 | Realm | `{{ cookiecutter.ifdd_keycloak_realm }}`, issuer `{{ cookiecutter.ifdd_oidc_realm }}` |
 | Admin console | `https://{{ cookiecutter.ifdd_keycloak_host }}/admin/` |
-| Images | `{{ cookiecutter.ifdd_keycloak_image }}`, `{{ cookiecutter.ifdd_keycloak_postgres_image }}` (upstream, no image of its own) |
-| Network | `{{ cookiecutter.ifdd_proxy_network }}` (proxy) and `db` (Keycloak and PostgreSQL only) |
+| Images | `{{ cookiecutter.ifdd_keycloak_image }}`, `{{ cookiecutter.ifdd_keycloak_postgres_image }}`, `{{ cookiecutter.ifdd_keycloak_backup_image }}` (upstream, no image of its own) |
+| Network | `{{ cookiecutter.ifdd_proxy_network }}` (proxy) and `db` (Keycloak, PostgreSQL and the backup service only) |
 | Development | `http://127.0.0.1:{{ cookiecutter.ifdd_keycloak_dev_port }}/admin/` |
 
 ## What the instance contains
@@ -24,7 +24,9 @@ Two compose files, `.env` with generated secrets, and the realm: the import
 file `realm/import/{{ cookiecutter.ifdd_keycloak_realm }}-realm.json`, the
 script that generates it from `realm/values.toml`, and `realm/OVERVIEW.md`,
 the realm as tables. Keycloak imports the realm on its first start only;
-afterwards its database is authoritative ({ref}`ifdd-keycloak-realm`).
+afterwards its database is authoritative ({ref}`ifdd-keycloak-realm`). A
+backup service dumps that database on a schedule into `backups/`, and
+`adm_backup_restore.sh` restores a dump ({ref}`ifdd-keycloak-operations`).
 
 ## Architecture
 
@@ -34,6 +36,8 @@ flowchart LR
   Services[be, ct, ts, oauth2-proxy, scripts] -->|"{{ cookiecutter.ifdd_keycloak_host }}"| Proxy
   Proxy -->|HTTP 8080| KC[keycloak]
   KC -->|db network| PG[(PostgreSQL)]
+  BK[backup] -->|db network| PG
+  BK -->|dumps| DIR[(backups directory)]
 ```
 
 TLS ends at the proxy; Keycloak serves plain HTTP inside and takes the public

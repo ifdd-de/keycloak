@@ -15,6 +15,18 @@ events of the realm in the admin console.
 | `unhealthy`, but Keycloak runs | the database is gone (readiness includes it); Docker does not restart unhealthy containers | bring the database back; `docker compose ps` shows both |
 | `build_realm.py` fails with an unknown Keycloak version | there is no file of built-in scopes for that image tag | use a Keycloak version the template knows |
 
+## Backup and restore
+
+| Symptom | Cause | Remedy |
+|---|---|---|
+| `docker compose` stops with `IFDD_KEYCLOAK_BACKUP_UID ... set in .env` | the instance is older than the backup service; `cruft update` leaves `.env` alone | add `IFDD_KEYCLOAK_BACKUP_UID` and `IFDD_KEYCLOAK_BACKUP_GID` with the values of `id -u` and `id -g` of the user who is to own the dumps |
+| `bind source path does not exist: .../backups` | `backups/` is missing, for example in a fresh clone or after the template update that brought the backup service (Git keeps no empty directory) | `mkdir -m 700 backups` as the user of `IFDD_KEYCLOAK_BACKUP_UID` |
+| `backup` restarts, its log says `BACKUP_DIR points to a file or folder with insufficient permissions` | `backups/` belongs to another user than `IFDD_KEYCLOAK_BACKUP_UID`, for example to root | give it to that user: `chown -R <uid>:<gid> backups` |
+| the dumps are made at an unexpected hour | the schedule runs in the time zone `TZ` of the container; an unknown name falls back to UTC | check `TZ` in the compose file and the dates in the file names |
+| the post-generation hook stops with `refusing to run as root` | the instance was generated as root | generate it as the user who is to own the dumps |
+| `adm_backup_restore.sh` says `needs a terminal to confirm` | it ran without a terminal, for example from cron or a pipe | run it in an interactive shell |
+| the restore stops with `the restore failed; Keycloak stays stopped` | the dump could not be loaded (see the message of `psql` above it) | restore the safety dump the script names, with the same script |
+
 ## Realm
 
 | Symptom | Cause | Remedy |
