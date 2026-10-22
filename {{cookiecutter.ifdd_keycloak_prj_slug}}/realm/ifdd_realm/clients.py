@@ -79,7 +79,8 @@ def ct(v: Values, b: Builtin) -> Client:
         secret_env="IFDD_KEYCLOAK_CT_CLIENT_SECRET",
         service_account=True,
         full_scope_allowed=False,
-        role_scope=roles.signed_in(v) + roles.write(v) + roles.context_root(v),
+        role_scope=roles.signed_in(v) + roles.write(v) + roles.context_root(v)
+                   + roles.ts_writer(v),
         default_scopes=b.default_scopes + [v.roles.nodes_read],
         optional_scopes=optional_scopes(b),
     )
@@ -125,6 +126,37 @@ def ts(v: Values, b: Builtin) -> Client:
     )
 
 
+def ts_api(v: Values, b: Builtin) -> Client:
+    """ifdd-ts-api: carries the roles ifdd-ts-api checks and is the audience of
+    its tokens. No flow is enabled, nobody logs in with it; Keycloak puts it
+    into the aud of a token that holds one of its roles. The secret is
+    required by Keycloak for a confidential client and used by nobody."""
+    return Client(
+        client_id=v.ts_api_client,
+        name="IFDD Time Series API",
+        description="Roles and audience of ifdd-ts-api; no login.",
+        secret_env="IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET",
+        default_scopes=b.default_scopes,
+        optional_scopes=optional_scopes(b),
+    )
+
+
+def ts_ingest(v: Values, b: Builtin) -> Client:
+    """Services that write samples through ifdd-ts-api: client credentials
+    only. Tokens carry the write role and the store pattern of the root."""
+    return Client(
+        client_id=v.ts_ingest_client,
+        name="IFDD Time Series Ingest",
+        description="Client credentials of services writing samples through ifdd-ts-api.",
+        secret_env="IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET",
+        service_account=True,
+        full_scope_allowed=False,
+        role_scope=roles.ts_writer(v),
+        default_scopes=b.default_scopes,
+        optional_scopes=optional_scopes(b),
+    )
+
+
 def proxy(v: Values, b: Builtin) -> Client:
     """oauth2-proxy of ifdd-proxy: login gate, groups in the claim 'groups'."""
     hosts = ["https://" + host for host in v.proxy_gate_hosts]
@@ -143,4 +175,7 @@ def proxy(v: Values, b: Builtin) -> Client:
 
 
 def clients(v: Values, b: Builtin) -> list[Client]:
-    return [backend(v, b), api_script(v, b), ct(v, b), user_admin(v, b), ts(v, b), proxy(v, b)]
+    result = [backend(v, b), api_script(v, b), ct(v, b), user_admin(v, b), ts(v, b), proxy(v, b)]
+    if v.ts_api_client:
+        result += [ts_api(v, b), ts_ingest(v, b)]
+    return result

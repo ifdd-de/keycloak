@@ -19,6 +19,9 @@ class Roles:
     grafana_admin: str
     grafana_editor: str
     grafana_viewer: str
+    # ifdd-ts-api; empty in values files written before it existed
+    ts_read: str = ""
+    ts_write: str = ""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -49,6 +52,9 @@ class Values:
     ts_host: str
     proxy_client: str
     proxy_gate_hosts: list[str]
+    # ifdd-ts-api and its ingest client; empty: the realm has neither
+    ts_api_client: str = ""
+    ts_ingest_client: str = ""
 
 
 def load(path: Path) -> Values:
@@ -73,4 +79,7 @@ def load(path: Path) -> Values:
         ts_host=clients["ts"]["host"],
         proxy_client=clients["proxy"]["id"],
         proxy_gate_hosts=list(clients["proxy"]["gate_hosts"]),
+        # Optional, so that values files written before ts-api still load.
+        ts_api_client=clients.get("ts_api", {}).get("id", ""),
+        ts_ingest_client=clients.get("ts_ingest", {}).get("id", ""),
     )

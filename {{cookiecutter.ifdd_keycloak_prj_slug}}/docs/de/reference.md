@@ -35,6 +35,8 @@ Template-Variable ist.
 | `IFDD_KEYCLOAK_USERADMIN_CLIENT_ID`, `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}`, erzeugt | Client `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}`; die ID ist für die Skripte des Meta-Repositorys |
 | `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | erzeugt | Client `{{ cookiecutter.ifdd_ts_oidc_client_id }}` |
 | `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | erzeugt | Client `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` |
+| `IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET` | erzeugt | Client `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` (von niemandem genutzt) |
+| `IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET` | erzeugt | Client `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` |
 | `IFDD_KEYCLOAK_BACKUP_UID`, `IFDD_KEYCLOAK_BACKUP_GID` | IDs des Benutzers, der die Instanz erzeugt hat | Benutzer des Backup-Dienstes, Eigentümer der Dumps |
 
 Die Client-Secrets erreichen den Keycloak-Container als gleichnamige

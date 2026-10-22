@@ -42,6 +42,8 @@ services:
       IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET: "${IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET:?set in .env}"
       IFDD_KEYCLOAK_TS_CLIENT_SECRET: "${IFDD_KEYCLOAK_TS_CLIENT_SECRET:?set in .env}"
       IFDD_KEYCLOAK_PROXY_CLIENT_SECRET: "${IFDD_KEYCLOAK_PROXY_CLIENT_SECRET:?set in .env}"
+      IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET: "${IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET:?set in .env}"
+      IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET: "${IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET:?set in .env}"
     volumes:
       - ./realm/import:/opt/keycloak/data/import:ro
       # Login theme of the realm (loginTheme=ifdd); a directory theme needs

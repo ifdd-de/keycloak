@@ -9,6 +9,10 @@ A context pattern is a client role of the backend client whose name has a
 dot (ifdd-be-core, "Contexts and access"); it exists only as a client role.
 The template knows one, the context root; further patterns are created with
 keycloak_add_context_role.py of the meta repository.
+
+ifdd-ts-api has a client of its own that only carries roles: read, write and
+store patterns (client roles with a dot, the same syntax). The context root
+is its root store pattern too. Its roles are given to service accounts only.
 """
 from .model import Grant, Role
 from .values import Values
@@ -29,7 +33,7 @@ def realm_roles(v: Values) -> list[Role]:
 
 def client_roles(v: Values) -> dict[str, list[Role]]:
     r = v.roles
-    return {v.backend_client: [
+    result = {v.backend_client: [
         Role(name=r.public, description="Signed in, no further rights."),
         Role(name=r.nodes_read, description="Read nodes."),
         Role(name=r.nodes_write, description="Write nodes."),
@@ -37,6 +41,14 @@ def client_roles(v: Values) -> dict[str, list[Role]]:
         Role(name=r.context_root,
              description=f"Context pattern: every domain context below {r.context_root}."),
     ]}
+    if v.ts_api_client:
+        result[v.ts_api_client] = [
+            Role(name=r.ts_read, description="Read samples (ifdd-ts-api)."),
+            Role(name=r.ts_write, description="Write samples (ifdd-ts-api)."),
+            Role(name=r.context_root,
+                 description=f"Store pattern: every store below {r.context_root}."),
+        ]
+    return result
 
 
 # Keycloak creates the client realm-management with every realm; the import
@@ -79,6 +91,20 @@ def privileged(v: Values) -> Grant:
 def context_root(v: Values) -> Grant:
     """The context pattern of the root: every domain context (client role only)."""
     return Grant(client={v.backend_client: [v.roles.context_root]})
+
+
+def ts_reader(v: Values) -> Grant:
+    """Read samples of every store through ifdd-ts-api (nothing without ts-api)."""
+    if not v.ts_api_client:
+        return Grant()
+    return Grant(client={v.ts_api_client: [v.roles.ts_read, v.roles.context_root]})
+
+
+def ts_writer(v: Values) -> Grant:
+    """Write samples to every store through ifdd-ts-api (nothing without ts-api)."""
+    if not v.ts_api_client:
+        return Grant()
+    return Grant(client={v.ts_api_client: [v.roles.ts_write, v.roles.context_root]})
 
 
 def default_role(v: Values) -> Role:

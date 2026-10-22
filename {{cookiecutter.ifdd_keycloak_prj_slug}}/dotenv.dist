@@ -39,6 +39,11 @@ IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET=<<generate:chars:48:aA0>>
 IFDD_KEYCLOAK_TS_CLIENT_SECRET=<<generate:chars:48:aA0>>
 # {{ cookiecutter.ifdd_proxy_oidc_client_id }}: ifdd-proxy, secrets/oauth2_proxy_client_secret
 IFDD_KEYCLOAK_PROXY_CLIENT_SECRET=<<generate:chars:48:aA0>>
+# {{ cookiecutter.ifdd_ts_api_oidc_client_id }}: carries the roles of ifdd-ts-api; no flow is enabled,
+# so this secret is used by nobody (Keycloak needs one for the client)
+IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET=<<generate:chars:48:aA0>>
+# {{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}: services writing samples through ifdd-ts-api
+IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET=<<generate:chars:48:aA0>>
 
 # Owner of the database dumps in ./backups: the backup service runs with this
 # user and group id, so the files belong to the user on the host. Written when

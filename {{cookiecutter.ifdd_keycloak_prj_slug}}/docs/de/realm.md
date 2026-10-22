@@ -113,6 +113,8 @@ UI prüfen die Client-Rollen (`resource_access`).
 | `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}` | vertraulich | Client Credentials | keine |
 | `{{ cookiecutter.ifdd_ts_oidc_client_id }}` | vertraulich | Authorization Code mit PKCE S256, Client Credentials | `https://{{ cookiecutter.ifdd_ts_host }}/login/generic_oauth` |
 | `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | vertraulich | Authorization Code mit PKCE S256 | {% for host in gate_hosts %}`https://{{ host }}/oauth2/callback`{{ ", " if not loop.last else "" }}{% endfor %} |
+| `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` | vertraulich | keine (trägt die Rollen von ts-api) | keine |
+| `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | vertraulich | Client Credentials | keine |
 
 Die Redirect-URIs des Login-Gates kommen aus
 `ifdd_keycloak_proxy_gate_hosts`: eine je Host hinter oauth2-proxy. Welche
@@ -135,6 +137,36 @@ die es gewährt, und die Service-Accounts von
 Muster nur über Gruppen, zusammen mit einer Knotengruppe. Weitere Muster, je
 mit ihrer Gruppe `ifdd_ctx_<pattern>`, legt `keycloak_add_context_role.py`
 des Meta-Repositorys in einem laufenden Realm an.
+
+## Zeitreihen-API
+
+ifdd-ts-api prüft die Client-Rollen ihres eigenen Clients
+`{{ cookiecutter.ifdd_ts_api_oidc_client_id }}`, der zugleich die Audience
+ihrer Tokens ist. Mit diesem Client meldet sich niemand an: Kein Flow ist
+eingeschaltet, und Keycloak setzt ihn in das `aud` jedes Tokens, das eine
+seiner Rollen trägt. Seine Rollen:
+
+| Rolle | Bedeutung |
+|---|---|
+| `{{ cookiecutter.ifdd_ts_api_role_read }}` | Samples lesen |
+| `{{ cookiecutter.ifdd_ts_api_role_write }}` | Samples schreiben |
+| `{{ cookiecutter.ifdd_context_root }}` | Store-Muster der Wurzel: jeder Store |
+
+Ein weiteres Store-Muster ist eine weitere Client-Rolle mit Punkt, z. B.
+`temperature.ops.example.ifdd.de` nur für diesen Store. Die Rollen bekommen
+nur Service-Accounts, nie Gruppen (ts-api nimmt nur Client Credentials an):
+
+| Service-Account | Rollen von `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` |
+|---|---|
+| `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | `{{ cookiecutter.ifdd_ts_api_role_write }}`, `{{ cookiecutter.ifdd_context_root }}` |
+| `{{ cookiecutter.ifdd_keycloak_ct_client_id }}` | `{{ cookiecutter.ifdd_ts_api_role_write }}`, `{{ cookiecutter.ifdd_context_root }}` |
+| `{{ cookiecutter.ifdd_keycloak_api_client_id }}` | `{{ cookiecutter.ifdd_ts_api_role_read }}`, `{{ cookiecutter.ifdd_context_root }}` |
+
+`{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` und
+`{{ cookiecutter.ifdd_keycloak_ct_client_id }}` haben keinen Full Scope; die
+Rollen stehen auch in ihren Scope-Mappings. Grafana
+(`{{ cookiecutter.ifdd_ts_oidc_client_id }}`) bekommt keine: Es liest
+VictoriaMetrics direkt.
 
 ## Änderungen an einem bestehenden Realm
 
@@ -230,4 +262,65 @@ IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET=<printed secret>
 Getestet mit `kcadm.sh` aus der Distribution von Keycloak 26.8.0 gegen
 `http://localhost:8080`; nicht getestet im Container und mit gesetztem
 `KC_HOSTNAME`.
+```
+
+### Die Clients von ts-api ergänzen
+
+Einem Realm, der importiert wurde, bevor es ts-api gab, fehlen die Clients
+`{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` und
+`{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}`, und die
+Compose-Dateien verlangen ab dann `IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET` und
+`IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET`. Beide Clients mit `kcadm.sh` im
+laufenden Container anlegen und die Rollen vergeben, als Admin des
+Master-Realms:
+
+```bash
+docker compose -f docker-compose-production.yml exec keycloak bash
+```
+
+```bash
+# inside the container
+REALM={{ cookiecutter.ifdd_keycloak_realm }} API={{ cookiecutter.ifdd_ts_api_oidc_client_id }} INGEST={{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}
+RO={{ cookiecutter.ifdd_ts_api_role_read }} RW={{ cookiecutter.ifdd_ts_api_role_write }} ROOT={{ cookiecutter.ifdd_context_root }}
+kcadm() { /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm.config; }
+kcadm config credentials --server http://localhost:8080 --realm master --user <admin>  # asks for the password
+id_of() { kcadm get clients -r "$REALM" -q clientId="$1" --fields id --format csv --noquotes; }
+AID=$(kcadm create clients -r "$REALM" -i -s clientId="$API" -s name="IFDD Time Series API" \
+  -s publicClient=false -s serviceAccountsEnabled=false -s standardFlowEnabled=false \
+  -s directAccessGrantsEnabled=false)
+for role in "$RO" "$RW" "$ROOT"; do kcadm create "clients/$AID/roles" -r "$REALM" -s name="$role"; done
+IID=$(kcadm create clients -r "$REALM" -i -s clientId="$INGEST" -s name="IFDD Time Series Ingest" \
+  -s publicClient=false -s serviceAccountsEnabled=true -s standardFlowEnabled=false \
+  -s directAccessGrantsEnabled=false -s fullScopeAllowed=false)
+grant() {  # client, role, role
+  kcadm add-roles -r "$REALM" --uusername "service-account-$1" --cclientid "$API" \
+    --rolename "$2" --rolename "$3"
+  for role in "$2" "$3"; do   # scope mapping, for clients without full scope
+    kcadm create "clients/$(id_of "$1")/scope-mappings/clients/$AID" -r "$REALM" \
+      -b "[$(kcadm get "clients/$AID/roles/$role" -r "$REALM")]"
+  done
+}
+grant "$INGEST" "$RW" "$ROOT"
+grant {{ cookiecutter.ifdd_keycloak_ct_client_id }} "$RW" "$ROOT"
+grant {{ cookiecutter.ifdd_keycloak_api_client_id }} "$RO" "$ROOT"
+kcadm get "clients/$AID/client-secret" -r "$REALM" --fields value --format csv --noquotes
+kcadm get "clients/$IID/client-secret" -r "$REALM" --fields value --format csv --noquotes
+rm /tmp/kcadm.config
+exit
+```
+
+Die beiden ausgegebenen Secrets in dieser Reihenfolge in `.env` eintragen:
+
+```text
+IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET=<first secret>
+IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET=<second secret>
+```
+
+Das Scope-Mapping von `{{ cookiecutter.ifdd_keycloak_api_client_id }}` ist
+nicht nötig (der Client hat Full Scope) und schadet nicht.
+
+```{note}
+Getestet mit `kcadm.sh` aus der Distribution von Keycloak 26.8.0 gegen
+`http://localhost:8080` und einen aus dem vorigen Template importierten
+Realm; nicht getestet im Container.
 ```

@@ -80,6 +80,7 @@ them; by hand:
 | `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}` | `keycloak_add_user.py` of the meta repository | `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | read from this `.env` |
 | `{{ cookiecutter.ifdd_ts_oidc_client_id }}` | ts (Grafana) | `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | `secrets/oidc_client_secret` of ts |
 | `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | proxy (oauth2-proxy) | `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | `secrets/oauth2_proxy_client_secret` of the proxy |
+| `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | services writing samples through ts-api | `IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET` | the service, by hand |
 
 `{{ cookiecutter.ifdd_oidc_backend_client_id }}` is public and has no secret.
 The import reads these secrets on the first start only; afterwards Keycloak

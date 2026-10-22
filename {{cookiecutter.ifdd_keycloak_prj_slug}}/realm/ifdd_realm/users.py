@@ -12,10 +12,11 @@ def service_accounts(v: Values, default_role: str) -> list[ServiceAccount]:
     default = Grant(realm=[default_role])
     return [
         ServiceAccount(client_id=v.api_client,
-                       grant=default + roles.read(v) + roles.context_root(v)),
+                       grant=default + roles.read(v) + roles.context_root(v) + roles.ts_reader(v)),
         ServiceAccount(client_id=v.ct_client,
-                       grant=default + roles.write(v) + roles.context_root(v)),
+                       grant=default + roles.write(v) + roles.context_root(v) + roles.ts_writer(v)),
         ServiceAccount(client_id=v.useradmin_client, grant=default + roles.user_admin()),
         ServiceAccount(client_id=v.ts_client,
                        grant=default + roles.read(v) + roles.context_root(v)),
-    ]
+    ] + ([ServiceAccount(client_id=v.ts_ingest_client, grant=default + roles.ts_writer(v))]
+         if v.ts_ingest_client else [])
