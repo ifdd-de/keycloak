@@ -1,6 +1,17 @@
 # Changelog
 
-## [Unreleased]
+## [26.10.3] - 2026-10-30
+
+- Keycloak 26.8.1 (`ifdd_keycloak_image`, was 26.8.0) with the built-in
+  client scopes of that version (`realm/ifdd_realm/builtin/keycloak-26.8.1.json`,
+  partial export of a fresh realm; the same scopes as 26.8.0). The file of
+  26.8.0 stays for instances on that image.
+- Documentation check: Sphinx 9.2.0 (`tests/docs/requirements.txt`).
+- Upgrade of an existing instance to Keycloak 26.8.1: `cruft update
+  --variables-to-update '{"ifdd_keycloak_image":
+  "quay.io/keycloak/keycloak:26.8.1"}'`, then
+  `docker compose -f docker-compose-production.yml up -d`; the realm is not
+  touched.
 
 - Backup of the database: a service `backup` in the production compose file
   (image `prodrigestivill/postgres-backup-local`) runs `pg_dump` on a schedule

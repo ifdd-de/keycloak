@@ -39,7 +39,7 @@ expect without repeating values.
 | Variable | Default | Meaning |
 |---|---|---|
 | `ifdd_keycloak_prj_name`, `ifdd_keycloak_prj_slug` | `IFDD Keycloak`, derived | name, also the title of the login pages (`display_name` in `realm/values.toml`); the slug names the directory and the Traefik router |
-| `ifdd_keycloak_image` | `quay.io/keycloak/keycloak:26.8.0` | Keycloak image; its tag selects the built-in scopes (`realm/ifdd_realm/builtin/keycloak-<tag>.json`) |
+| `ifdd_keycloak_image` | `quay.io/keycloak/keycloak:26.8.1` | Keycloak image; its tag selects the built-in scopes (`realm/ifdd_realm/builtin/keycloak-<tag>.json`) |
 | `ifdd_keycloak_postgres_image` | `postgres:18` | PostgreSQL image (Keycloak 26.8 supports 14 to 18) |
 | `ifdd_keycloak_backup_image` | `prodrigestivill/postgres-backup-local:18` | image of the backup service; its tag must start with the major version of the PostgreSQL image |
 | `ifdd_keycloak_backup_schedule` | `@daily` | when the backup service dumps the database: a cron expression (five fields, or six with seconds first) or a descriptor such as `@daily`, `@every 6h` |

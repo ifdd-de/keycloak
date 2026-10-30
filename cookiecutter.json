@@ -1,7 +1,7 @@
 {
   "ifdd_keycloak_prj_name": "IFDD Keycloak",
   "ifdd_keycloak_prj_slug": "{{ cookiecutter.ifdd_keycloak_prj_name|lower|replace(' ', '-') }}",
-  "ifdd_keycloak_image": "quay.io/keycloak/keycloak:26.8.0",
+  "ifdd_keycloak_image": "quay.io/keycloak/keycloak:26.8.1",
   "ifdd_keycloak_postgres_image": "postgres:18",
   "ifdd_keycloak_backup_image": "prodrigestivill/postgres-backup-local:18",
   "ifdd_keycloak_backup_schedule": "@daily",
