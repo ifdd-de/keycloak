@@ -8,7 +8,8 @@ import re
 from collections import Counter
 from typing import Any
 
-SECRET = re.compile(r"\$\{IFDD_KEYCLOAK_[A-Z_]+_CLIENT_SECRET\}")
+# A further realm adds _<SUFFIX> (its realm name in capitals, see build_realm.py).
+SECRET = re.compile(r"\$\{IFDD_KEYCLOAK_[A-Z_]+_CLIENT_SECRET(_[A-Z0-9_]+)?\}")
 
 # Roles of clients Keycloak creates itself that the realm grants (the import
 # file does not define them). Add a role here before granting it.
@@ -78,7 +79,7 @@ def check(realm: dict[str, Any]) -> list[str]:
         if c["publicClient"] == ("secret" in c):
             errors.append(f"{c['clientId']}: a public client has no secret, a confidential one needs one")
         if "secret" in c and not SECRET.fullmatch(c["secret"]):
-            errors.append(f"{c['clientId']}: secret must be an ${{IFDD_KEYCLOAK_*_CLIENT_SECRET}} placeholder")
+            errors.append(f"{c['clientId']}: secret must be an ${{IFDD_KEYCLOAK_*_CLIENT_SECRET[_<SUFFIX>]}} placeholder")
         # Rules of the review (RFC 9700): no implicit flow, no password grant,
         # PKCE for public clients, no offline tokens.
         if c["implicitFlowEnabled"] or c["directAccessGrantsEnabled"]:

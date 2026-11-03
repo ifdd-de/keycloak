@@ -40,7 +40,9 @@ Template-Variable ist.
 | `IFDD_KEYCLOAK_BACKUP_UID`, `IFDD_KEYCLOAK_BACKUP_GID` | IDs des Benutzers, der die Instanz erzeugt hat | Benutzer des Backup-Dienstes, Eigentümer der Dumps |
 
 Die Client-Secrets erreichen den Keycloak-Container als gleichnamige
-Umgebungsvariablen; die Realm-Datei verweist als Platzhalter auf sie.
+Umgebungsvariablen; die Realm-Datei verweist als Platzhalter auf sie. Jeder
+Realm aus `ifdd_keycloak_extra_realms` hat dieselben sieben Secrets mit dem
+Suffix `_<SUFFIX>` ({ref}`ifdd-keycloak-realm-own-secrets`).
 
 ## Endpunkte
 

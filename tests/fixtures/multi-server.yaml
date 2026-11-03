@@ -1,0 +1,12 @@
+# One Keycloak (on stage-a) for several servers, one realm per stage. This
+# instance's realm is realm-a; realm-b, realm-c and realm.d come from further
+# values files and get client secrets of their own.
+default_context:
+  ifdd_keycloak_prj_name: Example Keycloak
+  ifdd_oidc_realm: "https://id.stage-a.example.test/realms/realm-a"
+  ifdd_keycloak_extra_realms: "realm-b, realm-c, realm.d"
+  ifdd_be_url: https://rest.stage-a.example.test
+  ifdd_ui_url: https://ui.stage-a.example.test
+  ifdd_ts_host: ts.stage-a.example.test
+  ifdd_wf_host: wf.stage-a.example.test
+  ifdd_keycloak_proxy_gate_hosts: "wf.stage-a.example.test"

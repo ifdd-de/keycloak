@@ -12,6 +12,7 @@
   "ifdd_oidc_realm": "https://keycloak.example.org/realms/ifdd",
   "ifdd_keycloak_host": "{{ cookiecutter.ifdd_oidc_realm.split('://')[-1].split('/')[0] }}",
   "ifdd_keycloak_realm": "{{ cookiecutter.ifdd_oidc_realm.split('/realms/')[-1].strip('/') }}",
+  "ifdd_keycloak_extra_realms": "",
   "ifdd_keycloak_dev_port": "8096",
   "ifdd_keycloak_admin_user": "admin",
   "ifdd_proxy_network": "proxy-net",

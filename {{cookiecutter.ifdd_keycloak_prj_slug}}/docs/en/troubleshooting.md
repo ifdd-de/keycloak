@@ -37,6 +37,8 @@ events of the realm in the admin console.
 | the login page shows Keycloak's default look | the realm was imported before the theme, or `themes/ifdd` is not mounted | set the theme in the admin console ({ref}`ifdd-keycloak-realm`); check the volumes of the compose file |
 | a change of the theme has no effect | Keycloak caches themes outside `start-dev` | restart Keycloak |
 | `build_realm.py` stops with `realm '...' is named in ...` | two values files name the same realm | give each further realm its own `name` |
+| `build_realm.py` stops with `needs client secrets of its own` | the realm is not in `ifdd_keycloak_extra_realms` | add it, then its variables to `.env` ({ref}`ifdd-keycloak-realm-own-secrets`) |
+| `docker compose` stops with `IFDD_KEYCLOAK_..._CLIENT_SECRET_<SUFFIX> ... set in .env` | a further realm was added to an existing instance; cruft does not update `.env` | add the variables to `.env` by hand |
 | the first `cruft update` after the template of 2026-10-20 reports patch errors for `realm/ifdd_realm/__pycache__/*.pyc` | the older template wrote byte code when its hook ran `build_realm.py`; it differs in every rendering | run that update as `PYTHONDONTWRITEBYTECODE=1 cruft update`, or remove `realm/ifdd_realm/__pycache__` first; later updates need nothing |
 | a client secret in `.env` does not work | the realm was imported with another value, or the secret was rotated in Keycloak | take the secret from the admin console (client, "Credentials") |
 

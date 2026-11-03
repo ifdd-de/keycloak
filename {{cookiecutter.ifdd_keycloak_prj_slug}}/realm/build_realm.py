@@ -9,12 +9,20 @@ Each values file gives import/<realm>-realm.json, named after [realm] name.
 realm/values.toml writes OVERVIEW.md, every other values file
 OVERVIEW-<realm>.md. Existing files of other realms are never removed.
 
+The realm of realm/values.toml takes the client secrets
+IFDD_KEYCLOAK_<CLIENT>_CLIENT_SECRET from .env. Every other realm takes
+secrets of its own, IFDD_KEYCLOAK_<CLIENT>_CLIENT_SECRET_<SUFFIX> (the realm
+name in capitals, other characters than letters and digits as "_"); the
+compose files pass them for the realms in ifdd_keycloak_extra_realms, and the
+script refuses a realm whose secrets they do not pass.
+
 Keycloak reads realm/import/ at every start and imports each file whose realm
 does not exist yet (--import-realm); see the README. The files are generated:
 change the values files or ifdd_realm/, not them.
 """
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -28,6 +36,45 @@ sys.dont_write_bytecode = True
 from ifdd_realm import builtin, overview, realm, validate, values
 
 DEFAULT_VALUES = HERE / "values.toml"
+COMPOSE_FILES = [HERE.parent / "docker-compose-production.yml", HERE.parent / "docker-compose-development.yml"]
+SECRET = re.compile(r"^\$\{(IFDD_KEYCLOAK_[A-Z0-9_]+_CLIENT_SECRET)\}$")
+
+
+def secret_suffix(realm_name: str) -> str:
+    """The suffix of the secrets of a further realm, as the template writes it."""
+    return re.sub(r"[^A-Za-z0-9]", "_", realm_name).upper()
+
+
+def instance_realm() -> str | None:
+    """The realm of realm/values.toml, which keeps the secrets without suffix."""
+    return values.load(DEFAULT_VALUES).realm if DEFAULT_VALUES.is_file() else None
+
+
+def own_secrets(data: dict, values_file: Path) -> None:
+    """Give a further realm secrets of its own; refuse it if compose does not pass them.
+
+    Without this, every realm of the Keycloak would share the secrets of the
+    instance's realm: knowing one stage's secret would mean knowing all.
+    """
+    if data["realm"] == instance_realm():
+        return
+    suffix = secret_suffix(data["realm"])
+    names = []
+    for client in data.get("clients", []):
+        match = SECRET.match(client.get("secret") or "")
+        if match:
+            client["secret"] = "${" + match.group(1) + "_" + suffix + "}"
+            names.append(match.group(1) + "_" + suffix)
+    for compose in COMPOSE_FILES:
+        if not compose.is_file():
+            continue
+        text = compose.read_text()
+        missing = [name for name in names if f"{name}:" not in text]
+        if missing:
+            sys.exit(f"{shown(values_file)}: realm {data['realm']!r} needs client secrets of its own "
+                     f"({', '.join(missing)}), and {compose.name} does not pass them. Add "
+                     f"{data['realm']!r} to ifdd_keycloak_extra_realms (cruft update "
+                     "--variables-to-update), then the new lines of dotenv.dist to .env.")
 
 
 def shown(path: Path) -> str:
@@ -42,6 +89,7 @@ def render(values_file: Path) -> tuple[str, str, str]:
     """Return (realm name, content of the import file, overview) for one values file."""
     v = values.load(values_file)
     data = realm.build(v)
+    own_secrets(data, values_file)
     errors = validate.check(data)
     if errors:
         sys.exit(f"{shown(values_file)}: realm is inconsistent:\n  - " + "\n  - ".join(errors))

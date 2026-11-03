@@ -57,6 +57,14 @@ services:
       IFDD_KEYCLOAK_PROXY_CLIENT_SECRET: "${IFDD_KEYCLOAK_PROXY_CLIENT_SECRET:?set in .env}"
       IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET: "${IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET:?set in .env}"
       IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET: "${IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET:?set in .env}"
+{%- set extra_realms = cookiecutter.ifdd_keycloak_extra_realms.split(",") | map("trim") | reject("equalto", "") | list %}
+{%- for realm in extra_realms %}
+{%- set suffix = realm | replace(".", "_") | replace("-", "_") | upper %}
+      # Further realm {{ realm }} (ifdd_keycloak_extra_realms): its own secrets.
+{%- for client in ("API", "CT", "USERADMIN", "TS", "PROXY", "TSAPI", "TSINGEST") %}
+      IFDD_KEYCLOAK_{{ client }}_CLIENT_SECRET_{{ suffix }}: "${IFDD_KEYCLOAK_{{ client }}_CLIENT_SECRET_{{ suffix }}:?set in .env}"
+{%- endfor %}
+{%- endfor %}
     volumes:
       - ./realm/import:/opt/keycloak/data/import:ro
       # Login theme of the realm (loginTheme=ifdd); a directory theme needs

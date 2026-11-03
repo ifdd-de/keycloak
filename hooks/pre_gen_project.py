@@ -13,6 +13,7 @@ VALUES = {
     "ifdd_oidc_realm": "{{ cookiecutter.ifdd_oidc_realm }}",
     "ifdd_keycloak_host": "{{ cookiecutter.ifdd_keycloak_host }}",
     "ifdd_keycloak_realm": "{{ cookiecutter.ifdd_keycloak_realm }}",
+    "ifdd_keycloak_extra_realms": "{{ cookiecutter.ifdd_keycloak_extra_realms }}",
     "ifdd_keycloak_dev_port": "{{ cookiecutter.ifdd_keycloak_dev_port }}",
     "ifdd_keycloak_admin_user": "{{ cookiecutter.ifdd_keycloak_admin_user }}",
     "ifdd_proxy_network": "{{ cookiecutter.ifdd_proxy_network }}",
@@ -124,6 +125,20 @@ for key in ("ifdd_keycloak_backup_keep_days", "ifdd_keycloak_backup_keep_weeks",
 
 if VALUES["ifdd_keycloak_realm"] == "master":
     errors.append("ifdd_keycloak_realm: the master realm cannot be imported")
+
+# Further realms of this Keycloak (realm/values_<x>.toml): each gets client
+# secrets of its own, IFDD_KEYCLOAK_<CLIENT>_CLIENT_SECRET_<SUFFIX>, with the
+# realm name in capitals and every other character than letters and digits
+# as "_" (the same rule as realm/build_realm.py).
+extra_realms = [r.strip() for r in VALUES["ifdd_keycloak_extra_realms"].split(",") if r.strip()]
+for name in extra_realms:
+    if not NAME.match(name) or name == "master":
+        errors.append(f"ifdd_keycloak_extra_realms: {name!r} is no realm name (letters, digits, '.', '_', '-'; not master)")
+    if name == VALUES["ifdd_keycloak_realm"]:
+        errors.append(f"ifdd_keycloak_extra_realms: {name!r} is the realm of this instance (ifdd_keycloak_realm)")
+suffixes = [re.sub(r"[^A-Za-z0-9]", "_", name).upper() for name in extra_realms]
+if len(set(suffixes)) != len(suffixes):
+    errors.append(f"ifdd_keycloak_extra_realms: names must differ, also as secret suffixes {suffixes}")
 if not VALUES["ifdd_oidc_realm"].rstrip("/").endswith("/realms/" + VALUES["ifdd_keycloak_realm"]):
     errors.append("ifdd_keycloak_realm must be the realm named in ifdd_oidc_realm (services use that URL)")
 if VALUES["ifdd_oidc_realm"].split("://")[-1].split("/")[0] != VALUES["ifdd_keycloak_host"]:

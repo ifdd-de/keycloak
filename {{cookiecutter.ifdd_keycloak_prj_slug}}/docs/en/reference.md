@@ -40,7 +40,9 @@ variable.
 | `IFDD_KEYCLOAK_BACKUP_UID`, `IFDD_KEYCLOAK_BACKUP_GID` | ids of the user who generated the instance | user of the backup service, owner of the dumps |
 
 The client secrets reach the Keycloak container as environment variables of
-the same name; the realm file refers to them as placeholders.
+the same name; the realm file refers to them as placeholders. Every realm of
+`ifdd_keycloak_extra_realms` has the same seven secrets with the suffix
+`_<SUFFIX>` ({ref}`ifdd-keycloak-realm-own-secrets`).
 
 ## Endpoints
 
