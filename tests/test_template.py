@@ -45,9 +45,22 @@ def fixture_name(request):
     return request.param
 
 
+# Further realms the tests create (further_realm); each needs its own client
+# secrets, which the compose files pass only for ifdd_keycloak_extra_realms.
+TEST_REALMS = "aa, bb, dd"
+
+
+def extra_realms_of(fixture_name):
+    """The further realms of an instance: those of the fixture and TEST_REALMS."""
+    ctx = yaml.safe_load(fixture_name.read_text())["default_context"]
+    names = ", ".join(n for n in (ctx.get("ifdd_keycloak_extra_realms", ""), TEST_REALMS) if n)
+    return [n.strip() for n in names.split(",") if n.strip()]
+
+
 @pytest.fixture
 def instance(fixture_name, tmp_path):
-    return render(tmp_path, fixture_name)
+    return render(tmp_path, fixture_name,
+                  ifdd_keycloak_extra_realms=", ".join(extra_realms_of(fixture_name)))
 
 
 def realm_of(inst):
@@ -118,6 +131,71 @@ def test_several_values_files(instance):
     assert build(instance, "--check").returncode == 0
     assert build(instance, "--check", "--values", "realm/values_aa.toml",
                  "realm/values_dd.toml").returncode == 0
+
+
+# --- secrets of further realms -------------------------------------------------
+
+CLIENTS = ("API", "CT", "USERADMIN", "TS", "PROXY", "TSAPI", "TSINGEST")
+
+
+def suffix_of(name):
+    return re.sub(r"[^A-Za-z0-9]", "_", name).upper()
+
+
+def test_every_further_realm_gets_secrets_of_its_own(instance, fixture_name):
+    """Shared secrets would make one stage's secret every stage's secret."""
+    env = env_of(instance)
+    secrets = {k: v for k, v in env.items() if re.fullmatch(r"IFDD_KEYCLOAK_[A-Z]+_CLIENT_SECRET(_\w+)?", k)}
+    expected = {f"IFDD_KEYCLOAK_{c}_CLIENT_SECRET" for c in CLIENTS}
+    expected |= {f"IFDD_KEYCLOAK_{c}_CLIENT_SECRET_{suffix_of(r)}" for c in CLIENTS
+                 for r in extra_realms_of(fixture_name)}
+    assert set(secrets) == expected
+    assert len(set(secrets.values())) == len(secrets), "two secrets have the same value"
+    assert all(len(v) == 48 for v in secrets.values())
+
+
+def test_compose_passes_the_secrets_of_every_further_realm(instance, fixture_name):
+    for name in ("docker-compose-production.yml", "docker-compose-development.yml"):
+        env = yaml.safe_load((instance / name).read_text())["services"]["keycloak"]["environment"]
+        for realm_name in extra_realms_of(fixture_name):
+            for client in CLIENTS:
+                var = f"IFDD_KEYCLOAK_{client}_CLIENT_SECRET_{suffix_of(realm_name)}"
+                assert env[var] == "${" + var + ":?set in .env}", (name, var)
+
+
+def test_further_realm_uses_its_own_secrets(instance, fixture_name):
+    name = extra_realms_of(fixture_name)[0]
+    own = {c["clientId"]: c["secret"] for c in realm_of(instance)[1]["clients"] if "secret" in c}
+    further_realm(instance, name)
+    result = build(instance, "--values", f"realm/values_{name}.toml")
+    assert result.returncode == 0, result.stderr
+    realm = json.loads((instance / "realm" / "import" / f"{name}-realm.json").read_text())
+    placeholders = {c["clientId"]: c["secret"] for c in realm["clients"] if "secret" in c}
+    assert placeholders and all(v.endswith("_" + suffix_of(name) + "}") for v in placeholders.values())
+    assert set(own) == set(placeholders)
+    assert not set(own.values()) & set(placeholders.values())
+    overview = (instance / "realm" / f"OVERVIEW-{name}.md").read_text()
+    assert f"_CLIENT_SECRET_{suffix_of(name)}`" in overview
+
+
+def test_further_realm_without_its_secrets_is_refused(instance):
+    further_realm(instance, "zz")
+    result = build(instance, "--values", "realm/values_zz.toml")
+    assert result.returncode != 0
+    assert "ifdd_keycloak_extra_realms" in result.stderr and "_CLIENT_SECRET_ZZ" in result.stderr
+    assert not (instance / "realm" / "import" / "zz-realm.json").exists()
+
+
+def test_copy_of_the_instance_realm_elsewhere_keeps_its_secrets(instance, tmp_path):
+    """A values file outside realm/ (e.g. a private directory) with the realm of the
+    instance builds the same realm, secrets without suffix."""
+    private = tmp_path / "private"
+    private.mkdir()
+    (private / "values_own.toml").write_text((instance / "realm" / "values.toml").read_text())
+    result = build(instance, "--values", str(private / "values_own.toml"), "--out", str(private))
+    assert result.returncode == 0, result.stderr
+    own_file, own = realm_of(instance)
+    assert (private / own_file.name).read_text() == own_file.read_text()
 
 
 def test_check_of_a_further_realm_notices_a_change(instance):
@@ -484,6 +562,12 @@ def test_compose_is_valid(instance, name):
     {"ifdd_ts_api_role_write": "ifdd_ts_ro"},
     {"ifdd_keycloak_ts_ingest_client_id": "ifdd-ct"},
     {"ifdd_ts_api_oidc_client_id": "ifdd-ts"},
+    # further realms: valid names, not the own realm, distinct secret suffixes
+    {"ifdd_keycloak_extra_realms": "ifdd"},
+    {"ifdd_keycloak_extra_realms": "master"},
+    {"ifdd_keycloak_extra_realms": "a b"},
+    {"ifdd_keycloak_extra_realms": "a-b, a.b"},
+    {"ifdd_keycloak_extra_realms": "x, x"},
 ])
 def test_pre_hook_rejects(tmp_path, extra):
     with pytest.raises(FailedHookException):

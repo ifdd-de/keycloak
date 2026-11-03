@@ -72,11 +72,44 @@ nennt sie nur. Beim nächsten Start importiert Keycloak jede Datei in
 `realm/import/` besteht. Eine Datei, die nach dem Umbenennen eines Realms
 übrig bleibt, meldet sie ebenfalls nicht; sie von Hand entfernen.
 
-Alle Realm-Dateien verweisen auf dieselben Client-Secrets in `.env`; weitere
-Realms bekommen also dieselben Secrets wie
-`{{ cookiecutter.ifdd_keycloak_realm }}`. Nach dem Import in der
-Admin-Konsole neue erzeugen (Client, „Credentials“) und den Diensten geben,
-die sie nutzen.
+{%- set extra_realms = cookiecutter.ifdd_keycloak_extra_realms.split(",") | map("trim") | reject("equalto", "") | list %}
+(ifdd-keycloak-realm-own-secrets)=
+### Secrets weiterer Realms
+
+Jeder weitere Realm bekommt eigene Client-Secrets,
+`IFDD_KEYCLOAK_<CLIENT>_CLIENT_SECRET_<SUFFIX>` in `.env`; der Suffix ist der
+Realm-Name in Großbuchstaben, jedes andere Zeichen als Buchstaben und Ziffern
+als `_` (Realm `example-b`: `_EXAMPLE_B`). Nur der Realm aus
+`realm/values.toml` (`{{ cookiecutter.ifdd_keycloak_realm }}`) behält die Namen ohne Suffix. Wer das
+Secret eines Realms kennt, öffnet damit keinen anderen.
+
+Die Realms stehen in `ifdd_keycloak_extra_realms`{% if extra_realms %}
+(diese Instanz: {% for r in extra_realms %}`{{ r }}`{{ ", " if not loop.last else "" }}{% endfor %}){% endif %}: Für sie erzeugt
+der Post-Generation-Hook die Secrets in `.env`, und die Compose-Dateien geben
+sie an Keycloak. `build_realm.py` lehnt einen weiteren Realm ab, dessen
+Secrets die Compose-Dateien nicht übergeben, und nennt die fehlenden
+Variablen.
+
+Eine Werte-Datei außerhalb von `realm/`, etwa in einem privaten Verzeichnis,
+funktioniert genauso; es zählt ihr Realm-Name:
+
+```bash
+python3 realm/build_realm.py --values ../private/values_example-b.toml --out ../private/
+```
+
+Die Import-Dateien vor dem Start nach `realm/import/` kopieren.
+
+Einen Realm zu einer bestehenden Instanz hinzufügen: `cruft update
+--variables-to-update '{"ifdd_keycloak_extra_realms": "<alle weiteren Realms>"}'`,
+dann seine Variablen von Hand in `.env` ergänzen (`.env` steht auf der
+Skip-Liste), jede mit einem neuen Zufallswert aus 48 Buchstaben und Ziffern,
+etwa aus
+`python3 -c "import secrets,string; a=string.ascii_letters+string.digits; print(''.join(secrets.choice(a) for _ in range(48)))"`.
+
+Jedes Secret dem Dienst des Servers geben, der diesen Realm nutzt, etwa das
+Secret des Proxy-Clients an `secrets/oauth2_proxy_client_secret` des Proxys
+auf diesem Server. Die Secrets wandern von Hand zwischen den Servern; dafür
+einen vertraulichen Weg nehmen.
 
 ## Rollen
 

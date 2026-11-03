@@ -69,10 +69,42 @@ realm does not exist yet and skips the others.
 `realm/import/`. A file left over after renaming a realm is not reported
 either; remove it yourself.
 
-All realm files refer to the same client secrets in `.env`, so further
-realms get the same secrets as `{{ cookiecutter.ifdd_keycloak_realm }}`.
-After the import, generate new ones in the admin console (client,
-"Credentials") and hand them to the services that use them.
+{%- set extra_realms = cookiecutter.ifdd_keycloak_extra_realms.split(",") | map("trim") | reject("equalto", "") | list %}
+(ifdd-keycloak-realm-own-secrets)=
+### Secrets of further realms
+
+Every further realm takes client secrets of its own,
+`IFDD_KEYCLOAK_<CLIENT>_CLIENT_SECRET_<SUFFIX>` in `.env`, where the suffix
+is the realm name in capitals with every character other than letters and
+digits as `_` (realm `example-b`: `_EXAMPLE_B`). Only the realm of
+`realm/values.toml` (`{{ cookiecutter.ifdd_keycloak_realm }}`) keeps the names without suffix. So
+knowing the secret of one realm does not open another one.
+
+The realms are listed in `ifdd_keycloak_extra_realms`{% if extra_realms %}
+(this instance: {% for r in extra_realms %}`{{ r }}`{{ ", " if not loop.last else "" }}{% endfor %}){% endif %}: for them
+the post-generation hook generates the secrets into `.env`, and the compose
+files hand them to Keycloak. `build_realm.py` refuses a further realm whose
+secrets the compose files do not pass, and names the missing variables.
+
+A values file outside `realm/`, for example in a private directory, works
+the same way; its realm name decides:
+
+```bash
+python3 realm/build_realm.py --values ../private/values_example-b.toml --out ../private/
+```
+
+Copy the import files into `realm/import/` before the start.
+
+To add a realm to an existing instance: `cruft update --variables-to-update
+'{"ifdd_keycloak_extra_realms": "<all further realms>"}'`, then add its
+variables to `.env` by hand (`.env` is on the skip list), each with a new
+random value of 48 letters and digits, for example from
+`python3 -c "import secrets,string; a=string.ascii_letters+string.digits; print(''.join(secrets.choice(a) for _ in range(48)))"`.
+
+Hand each secret to the service of the server that uses this realm, for
+example the secret of the proxy client to `secrets/oauth2_proxy_client_secret`
+of the proxy on that server. The secrets travel between servers by hand;
+use a channel that keeps them confidential.
 
 ## Roles
 

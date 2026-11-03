@@ -47,6 +47,7 @@ expect without repeating values.
 | `ifdd_keycloak_backup_keep_days`, `_keep_weeks`, `_keep_months` | `7`, `4`, `6` | how long the daily, weekly and monthly dumps are kept |
 | `ifdd_oidc_realm` | `https://keycloak.example.org/realms/ifdd` | realm URL the services use (issuer) |
 | `ifdd_keycloak_host`, `ifdd_keycloak_realm` | derived from `ifdd_oidc_realm` | public host (default for `IFDD_KEYCLOAK_HOST`) and realm name |
+| `ifdd_keycloak_extra_realms` | empty | comma-separated further realms of this Keycloak (`realm/values_<x>.toml`, e.g. one per server or stage); each gets client secrets of its own in `.env` and the compose files |
 | `ifdd_keycloak_dev_port` | `8096` | port on 127.0.0.1 in development |
 | `ifdd_keycloak_admin_user` | `admin` | temporary admin of the master realm |
 | `ifdd_proxy_network` | `proxy-net` | network of the proxy (the same instance as for the other services) |
@@ -102,8 +103,13 @@ Further values files give further import files for a one-off import:
 `python3 realm/build_realm.py --values realm/values_aa.toml realm/values_dd.toml`
 writes `import/<realm>-realm.json` and `OVERVIEW-<realm>.md` for each, named
 after `[realm] name`. The script never removes files of other realms; it
-lists them. `--check` covers only the given values files. All realm files
-share the client secret placeholders of `.env`.
+lists them. `--check` covers only the given values files. Further realms
+take client secrets of their own: `IFDD_KEYCLOAK_<CLIENT>_CLIENT_SECRET_<SUFFIX>`,
+the suffix being the realm name in capitals with `_` for other characters
+than letters and digits. They are generated into `.env` and passed by the
+compose files for the realms in `ifdd_keycloak_extra_realms`; `build_realm.py`
+refuses a further realm without them. The realm of `values.toml` keeps the
+names without suffix.
 
 The instance CI runs `build_realm.py --check`, so a change to `values.toml`
 or `ifdd_realm/` without the rebuilt files fails. `OVERVIEW.md` is rendered

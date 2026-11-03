@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased]
+
+- Further realms take client secrets of their own,
+  `IFDD_KEYCLOAK_<CLIENT>_CLIENT_SECRET_<SUFFIX>` (realm name in capitals,
+  `_` for other characters than letters and digits). Before, every realm of
+  the Keycloak shared the secrets of the instance's realm. New variable
+  `ifdd_keycloak_extra_realms` (default empty) lists the realms; the hook
+  generates their secrets into `.env`, the compose files pass them, and
+  `realm/build_realm.py` refuses a further realm whose secrets they do not
+  pass. The pre-generation hook rejects the own realm, `master`, invalid and
+  clashing names.
+- Realm page: section on the secrets of further realms; setup page: section
+  on several servers; troubleshooting rows for both messages.
+- Fixture `multi-server` (three further realms); tests for the secrets per
+  realm, checked against the Keycloak 26.8.1 distribution.
+- Upgrade: an instance with further values files must list their realms,
+  `cruft update --variables-to-update '{"ifdd_keycloak_extra_realms": "<realms>"}'`,
+  and add their variables to `.env` by hand (see the realm page). Realms that
+  exist already keep the secrets they were imported with; rebuilding their
+  import files only matters for a new import.
+
 ## [26.10.3] - 2026-10-30
 
 - Keycloak 26.8.1 (`ifdd_keycloak_image`, was 26.8.0) with the built-in

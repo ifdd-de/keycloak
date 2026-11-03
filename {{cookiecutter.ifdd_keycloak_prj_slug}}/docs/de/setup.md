@@ -87,6 +87,23 @@ kopiert sie; von Hand:
 Secret. Der Import liest diese Secrets nur beim ersten Start; danach hält
 Keycloak eine eigene Kopie ({ref}`ifdd-keycloak-operations`).
 
+(ifdd-keycloak-setup-several-servers)=
+### Mehrere Server
+
+Ein Keycloak kann mehrere Server bedienen, mit einem Realm je Server oder
+Stage:
+
+- der Realm dieser Instanz aus `realm/values.toml`, jeder andere aus einer
+  weiteren Werte-Datei, jeder mit eigenen Redirect-URIs (UI, Backend,
+  Gate-Hosts seines Servers) und eigenen Client-Secrets
+  ({ref}`ifdd-keycloak-realm-own-secrets`);
+- der Proxy dieses Servers nennt den Keycloak-Host in seinen internen
+  Hostnamen; die Proxys der anderen Server nicht, dort löst er über DNS zu
+  diesem Server auf;
+- diesen Server zuerst starten: Die Login-Gates der anderen Server brauchen
+  den Realm bei ihrem Start;
+- die Secrets jedes Realms den Diensten seines Servers geben.
+
 ## Menschen und Gruppen
 
 Menschen in der Admin-Konsole oder mit `keycloak_add_user.py` des
