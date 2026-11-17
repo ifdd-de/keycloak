@@ -30,14 +30,23 @@ Backup-Dienst sichert diese Datenbank nach Zeitplan nach `backups/`, und
 
 ## Architektur
 
-```{mermaid}
-flowchart LR
-  Browser -->|HTTPS| Proxy[proxy: Traefik]
-  Services[be, ct, ts, oauth2-proxy, Skripte] -->|"{{ cookiecutter.ifdd_keycloak_host }}"| Proxy
-  Proxy -->|HTTP 8080| KC[keycloak]
-  KC -->|Netz db| PG[(PostgreSQL)]
-  BK[backup] -->|Netz db| PG
-  BK -->|Dumps| DIR[(Verzeichnis backups)]
+```{uml}
+@startuml
+left to right direction
+  rectangle "Browser" as Browser
+  rectangle "proxy: Traefik" as Proxy
+  Browser --> Proxy : HTTPS
+  rectangle "be, ct, ts, oauth2-proxy, Skripte" as Services
+  Services --> Proxy : {{ cookiecutter.ifdd_keycloak_host }}
+  rectangle "keycloak" as KC
+  Proxy --> KC : HTTP 8080
+  database "PostgreSQL" as PG
+  KC --> PG : Netz db
+  rectangle "backup" as BK
+  BK --> PG : Netz db
+  database "Verzeichnis backups" as DIR
+  BK --> DIR : Dumps
+@enduml
 ```
 
 TLS endet am Proxy; Keycloak spricht intern reines HTTP und nimmt die
