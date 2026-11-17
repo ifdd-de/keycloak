@@ -17,7 +17,11 @@ jobs:
       - run: pytest -q tests
       - name: Documentation (docs/en, docs/de) matches and builds
         run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q default-jre-headless graphviz
           pip install -r tests/docs/requirements.txt
+          IFDD_PLANTUML_JAR="$(tests/docs/get_plantuml.sh)"
+          export IFDD_PLANTUML_JAR
           for fixture in tests/fixtures/*.yaml; do
             out="$RUNNER_TEMP/docs-check/$(basename "$fixture" .yaml)"
             cookiecutter --no-input --config-file "$fixture" --output-dir "$out" .

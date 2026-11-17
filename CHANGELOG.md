@@ -20,6 +20,12 @@
   and add their variables to `.env` by hand (see the realm page). Realms that
   exist already keep the secrets they were imported with; rebuilding their
   import files only matters for a new import.
+- Documentation: the architecture diagram in `docs/en` and `docs/de` is
+  PlantUML instead of Mermaid, so it also renders in PDF builds. The Sphinx
+  project of the full documentation needs `sphinxcontrib-plantuml`, Java and
+  Graphviz instead of `sphinxcontrib-mermaid`. `tests/docs/get_plantuml.sh`
+  downloads the pinned PlantUML jar (1.2026.10) for `tests/check_docs.py`; the
+  template CI installs Java and Graphviz.
 
 ## [26.10.3] - 2026-10-30
 
