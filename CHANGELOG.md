@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [26.11.1] - 2026-11-14
 
 - Further realms take client secrets of their own,
   `IFDD_KEYCLOAK_<CLIENT>_CLIENT_SECRET_<SUFFIX>` (realm name in capitals,
@@ -69,8 +69,8 @@
   passwords.
 - Instance CI: the compose check replaces the new placeholders and creates an
   empty `backups/`.
-- READMEs: a section on the use of large language models; the instance README
-  has no honesty notes any more, the template README no test reports.
+- READMEs: a section on the use of large language models; the READMEs no
+  longer carry test reports.
 - Upgrade: `cruft update` leaves `.env` alone and Git keeps no empty
   directory. Before the next `docker compose up` add
   `IFDD_KEYCLOAK_BACKUP_UID` and `IFDD_KEYCLOAK_BACKUP_GID` (values of `id -u`
@@ -106,7 +106,7 @@
 - Documentation of the instance in `docs/en` and `docs/de` (Sphinx sources,
   MyST Markdown): index, setup, build and release, operations, security,
   troubleshooting, reference, realm. The instance README is now an entry
-  point with a quick start, the links, honesty notes and the license; its
+  point with a quick start, the links and the license; its
   former sections moved into the documentation (the steps for existing
   realms into the page `realm`).
 - `docs/_build/` in `.gitignore` of the instance.
