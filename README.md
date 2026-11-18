@@ -67,7 +67,7 @@ expect without repeating values.
 | `ifdd_keycloak_ts_ingest_client_id` | `ifdd-ts-ingest` | client credentials for services that write samples through ifdd-ts-api |
 | `ifdd_proxy_oidc_client_id`, `ifdd_wf_host` | `ifdd-proxy`, `wf.example.org` | oauth2-proxy of ifdd-proxy (redirect `https://<wf host>/oauth2/callback`) |
 | `ifdd_keycloak_wf_admin_group` | `ifdd_wf_admins` | group admitted to ifdd-wf; keep equal to `ifdd_wf_sso_group` |
-| `ifdd_keycloak_proxy_gate_hosts` | `ifdd_wf_host` | comma-separated hosts behind the oauth2-proxy gate (its redirect URIs) |
+| `ifdd_keycloak_proxy_gate_hosts` | `ifdd_wf_host` | comma-separated hosts behind the oauth2-proxy gate (its redirect URIs); empty: no host behind the gate, e.g. without wf. **Shared** with `ifdd-de/proxy`, whose default is empty |
 | `ifdd_context_root` | `ifdd.de` | root of the context names: a context pattern (client role of the backend client) for every domain context, its group `ifdd_ctx_<root>`, and granted to the service accounts of api, ct and ts |
 
 The pre-generation hook rejects values that would render but not work (realm

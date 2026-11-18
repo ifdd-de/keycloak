@@ -453,6 +453,20 @@ def test_gate_hosts(tmp_path):
         "https://wf.example.org/*##https://ts.example.org/*"
 
 
+def test_empty_gate_hosts_give_a_client_without_redirects(tmp_path):
+    """An installation without wf: proxy's default for the shared variable is empty."""
+    inst = render(tmp_path, ifdd_keycloak_proxy_gate_hosts="")
+    proxy = next(c for c in realm_of(inst)[1]["clients"] if c["clientId"] == "ifdd-proxy")
+    assert proxy["redirectUris"] == []
+    assert "post.logout.redirect.uris" not in proxy["attributes"]
+    result = build(inst, "--check")
+    assert result.returncode == 0, result.stdout + result.stderr
+    for language, none in (("en", "none"), ("de", "keine")):
+        row = next(line for line in (inst / "docs" / language / "realm.md").read_text().splitlines()
+                   if line.startswith("| `ifdd-proxy` |"))
+        assert row.rstrip(" |").endswith(none), row
+
+
 def test_secrets_come_from_the_environment(instance):
     realm = realm_of(instance)[1]
     secrets_ = [c["secret"] for c in realm["clients"] if not c["publicClient"]]

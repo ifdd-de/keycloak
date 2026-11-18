@@ -1,5 +1,16 @@
 # Changelog
 
+## [26.11.2] - 2026-11-18
+
+- `ifdd_keycloak_proxy_gate_hosts` may be empty: no host behind the login
+  gate, for an installation without wf. The client of oauth2-proxy then has
+  no redirect URIs and no post-logout redirect URIs; its secret stays. The
+  variable is shared with `ifdd-de/proxy`, whose default is empty, and the
+  hook of 26.11.1 refused that value. Found by the integration run of
+  `ifdd-de/meta`. The default here stays `ifdd_wf_host`.
+- Realm page (en, de) and README: what an empty value means.
+- Test for an empty value; it fails with the template of 26.11.1.
+
 ## [26.11.1] - 2026-11-14
 
 - Further realms take client secrets of their own,

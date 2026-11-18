@@ -160,6 +160,7 @@ def ts_ingest(v: Values, b: Builtin) -> Client:
 def proxy(v: Values, b: Builtin) -> Client:
     """oauth2-proxy of ifdd-proxy: login gate, groups in the claim 'groups'."""
     hosts = ["https://" + host for host in v.proxy_gate_hosts]
+    logout = {"post.logout.redirect.uris": "##".join(h + "/*" for h in hosts)} if hosts else {}
     return Client(
         client_id=v.proxy_client,
         name="IFDD Proxy (oauth2-proxy)",
@@ -167,7 +168,7 @@ def proxy(v: Values, b: Builtin) -> Client:
         secret_env="IFDD_KEYCLOAK_PROXY_CLIENT_SECRET",
         standard_flow=True,
         redirect_uris=[h + "/oauth2/callback" for h in hosts],
-        attributes=PKCE | {"post.logout.redirect.uris": "##".join(h + "/*" for h in hosts)},
+        attributes=PKCE | logout,                                # no hosts: no gate
         mappers=[mappers.audience_of_client(v.proxy_client)],    # oauth2-proxy checks aud
         default_scopes=b.default_scopes + [GROUPS],
         optional_scopes=optional_scopes(b),
