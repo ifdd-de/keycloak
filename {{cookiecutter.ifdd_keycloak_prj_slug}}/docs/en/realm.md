@@ -140,12 +140,14 @@ UI check the client roles (`resource_access`).
 | `{{ cookiecutter.ifdd_keycloak_ct_client_id }}` | confidential | client credentials | none |
 | `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}` | confidential | client credentials | none |
 | `{{ cookiecutter.ifdd_ts_oidc_client_id }}` | confidential | authorization code with PKCE S256, client credentials | `https://{{ cookiecutter.ifdd_ts_host }}/login/generic_oauth` |
-| `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | confidential | authorization code with PKCE S256 | {% for host in gate_hosts %}`https://{{ host }}/oauth2/callback`{{ ", " if not loop.last else "" }}{% endfor %} |
+| `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | confidential | authorization code with PKCE S256 | {% for host in gate_hosts %}`https://{{ host }}/oauth2/callback`{{ ", " if not loop.last else "" }}{% else %}none{% endfor %} |
 | `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` | confidential | none (carries the roles of ts-api) | none |
 | `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | confidential | client credentials | none |
 
 The redirect URIs of the login gate come from
-`ifdd_keycloak_proxy_gate_hosts`: one per host behind oauth2-proxy. Which
+`ifdd_keycloak_proxy_gate_hosts`: one per host behind oauth2-proxy. Empty
+means no host behind the gate: the client keeps its secret but has no
+redirect URIs, so a login through it fails. Which
 roles reach the tokens of each client, and what the service accounts hold,
 is listed in `realm/OVERVIEW.md`.
 

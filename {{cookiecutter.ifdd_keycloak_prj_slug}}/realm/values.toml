@@ -63,5 +63,6 @@ id = "{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}"
 
 [clients.proxy]                    # oauth2-proxy of ifdd-proxy
 id = "{{ cookiecutter.ifdd_proxy_oidc_client_id }}"
-# Hosts whose services sit behind the login gate (redirect /oauth2/callback).
-gate_hosts = {{ cookiecutter.ifdd_keycloak_proxy_gate_hosts.split(',') | map('trim') | list | tojson }}
+# Hosts whose services sit behind the login gate (redirect /oauth2/callback);
+# empty: none, the client has no redirect URIs.
+gate_hosts = {{ cookiecutter.ifdd_keycloak_proxy_gate_hosts.split(',') | map('trim') | reject('equalto', '') | list | tojson }}

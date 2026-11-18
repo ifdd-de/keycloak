@@ -95,9 +95,14 @@ for key in ("ifdd_ts_api_role_read", "ifdd_ts_api_role_write"):
 check("ifdd_context_root", re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"),
       "a dotted lower-case name such as ifdd.de (letters, digits, inner '-')")
 
-gate_hosts = [h.strip() for h in VALUES["ifdd_keycloak_proxy_gate_hosts"].split(",")]
+# Empty: no service behind the login gate (an installation without wf); the
+# client of oauth2-proxy then has no redirect URIs. Shared with ifdd-de/proxy,
+# whose default is empty.
+gate_raw = VALUES["ifdd_keycloak_proxy_gate_hosts"].strip()
+gate_hosts = [h.strip() for h in gate_raw.split(",")] if gate_raw else []
 if not all(HOST.match(h) for h in gate_hosts) or len(set(gate_hosts)) != len(gate_hosts):
-    errors.append("ifdd_keycloak_proxy_gate_hosts: comma-separated, distinct host names without scheme")
+    errors.append("ifdd_keycloak_proxy_gate_hosts: empty, or comma-separated distinct host names "
+                  "without scheme")
 if not re.match(r"^[^:@]+:[0-9][0-9A-Za-z.-]*$", VALUES["ifdd_keycloak_image"].rsplit("/", 1)[-1]):
     errors.append("ifdd_keycloak_image: needs a version tag (it selects the built-in scopes of the realm)")
 
