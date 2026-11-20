@@ -63,10 +63,12 @@ id = "{{ cookiecutter.ifdd_ts_api_oidc_client_id }}"
 [clients.ts_ingest]                # services writing samples through ifdd-ts-api
 id = "{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}"
 
+{% if cookiecutter.ifdd_keycloak_lab_client_id -%}
 [clients.lab]                      # JupyterHub of ifdd-lab: login, tokens with the user's roles
 id = "{{ cookiecutter.ifdd_keycloak_lab_client_id }}"
 host = "{{ cookiecutter.ifdd_lab_host }}"
 
+{% endif -%}
 [clients.proxy]                    # oauth2-proxy of ifdd-proxy
 id = "{{ cookiecutter.ifdd_proxy_oidc_client_id }}"
 # Hosts whose services sit behind the login gate (redirect /oauth2/callback);

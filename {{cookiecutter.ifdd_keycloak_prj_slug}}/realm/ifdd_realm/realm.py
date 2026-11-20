@@ -11,10 +11,8 @@ SETTINGS: dict[str, Any] = {
     "loginWithEmailAllowed": False,
     "accessTokenLifespan": 1800,          # s; Keycloak default 300
     "accessCodeLifespan": 300,            # s; default 60
-    # 8 h, so that the client of ifdd-lab may keep its sessions that long
-    # (a client cannot exceed the realm, Keycloak 26.8.1); every other client
-    # stays at 30 min with a setting of its own (clients.SESSION_IDLE).
-    "ssoSessionIdleTimeout": 28800,       # s
+    # 30 min; 8 h with the client of ifdd-lab (LAB_SSO_IDLE, see build).
+    "ssoSessionIdleTimeout": 1800,        # s
     "ssoSessionMaxLifespan": 86400,       # s; default 36000
     "oauth2DeviceCodeLifespan": 1800,     # s; default 600
     # Refresh token rotation: each refresh token is valid once (RFC 9700 4.14).
@@ -42,6 +40,13 @@ def client_scope_mappings(all_clients: list) -> dict[str, list[dict[str, Any]]]:
     return result
 
 
+#: With the client of ifdd-lab the realm keeps idle SSO sessions for 8 h, so
+#: that this client may keep its sessions that long: a client cannot exceed the
+#: realm (Keycloak 26.8.1). Every other client stays at 30 min with a setting
+#: of its own (clients.SESSION_IDLE).
+LAB_SSO_IDLE = 28800
+
+
 def build(v: Values) -> dict[str, Any]:
     b = builtin.load(v.keycloak_version)
     default = roles.default_role(v)
@@ -51,6 +56,7 @@ def build(v: Values) -> dict[str, Any]:
         "realm": v.realm,
         "enabled": True,
         **SETTINGS,
+        **({"ssoSessionIdleTimeout": LAB_SSO_IDLE} if v.lab_client else {}),
         # The login pages show displayNameHtml as their heading, the browser
         # title shows displayName; the HTML one is escaped plain text.
         **({"displayName": v.display_name, "displayNameHtml": html.escape(v.display_name)}

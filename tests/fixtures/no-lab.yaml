@@ -1,0 +1,3 @@
+# An installation without ifdd-lab: no lab client, no lab groups, 30 min SSO idle.
+default_context:
+  ifdd_keycloak_lab_client_id: ""

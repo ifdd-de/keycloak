@@ -129,7 +129,9 @@ UI check the client roles (`resource_access`).
 | `{{ cookiecutter.ifdd_keycloak_group_nodes_writers }}` | `{{ cookiecutter.ifdd_be_role_nodes_read }}`, `{{ cookiecutter.ifdd_keycloak_role_nodes_write }}` |
 | `{{ cookiecutter.ifdd_keycloak_group_nodes_privileged }}` | `{{ cookiecutter.ifdd_be_role_nodes_read }}`, `{{ cookiecutter.ifdd_keycloak_role_nodes_priv }}` |
 | `{{ cookiecutter.ifdd_keycloak_wf_admin_group }}` | membership only (claim `groups`), for the login gate of wf |
+{%- if cookiecutter.ifdd_keycloak_lab_client_id %}
 | `{{ cookiecutter.ifdd_keycloak_lab_users_group }}`, `{{ cookiecutter.ifdd_keycloak_lab_admins_group }}` | membership only (claim `groups`): may log in to lab, administers lab |
+{%- endif %}
 | `ifdd_ctx_{{ cookiecutter.ifdd_context_root }}` | the context pattern `{{ cookiecutter.ifdd_context_root }}` |
 
 ## Clients
@@ -144,7 +146,9 @@ UI check the client roles (`resource_access`).
 | `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | confidential | authorization code with PKCE S256 | {% for host in gate_hosts %}`https://{{ host }}/oauth2/callback`{{ ", " if not loop.last else "" }}{% else %}none{% endfor %} |
 | `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` | confidential | none (carries the roles of ts-api) | none |
 | `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | confidential | client credentials | none |
+{%- if cookiecutter.ifdd_keycloak_lab_client_id %}
 | `{{ cookiecutter.ifdd_keycloak_lab_client_id }}` | confidential | authorization code with PKCE S256 | `https://{{ cookiecutter.ifdd_lab_host }}/hub/oauth_callback` |
+{%- endif %}
 
 The redirect URIs of the login gate come from
 `ifdd_keycloak_proxy_gate_hosts`: one per host behind oauth2-proxy. Empty
@@ -153,6 +157,7 @@ redirect URIs, so a login through it fails. Which
 roles reach the tokens of each client, and what the service accounts hold,
 is listed in `realm/OVERVIEW.md`.
 
+{% if cookiecutter.ifdd_keycloak_lab_client_id -%}
 ### Sessions
 
 The realm keeps an idle SSO session for 8 hours, because the hub of lab
@@ -169,6 +174,7 @@ also context patterns created later, because notebooks act in ifdd-be with
 the rights of the person logged in. It carries the audience of ifdd-be and
 the group claim.
 
+{% endif -%}
 ## Context patterns
 
 The backend gives domain contexts (dotted names such as
@@ -368,7 +374,7 @@ needed (it has full scope) and does no harm.
 Tested with `kcadm.sh` of the Keycloak 26.8.0 distribution against
 `http://localhost:8080` and a realm imported from the previous template;
 not tested inside the container.
-```
+```{% if cookiecutter.ifdd_keycloak_lab_client_id %}
 
 ### Adding the lab client
 
@@ -425,3 +431,4 @@ the client had a refresh lifetime of 8 h, the audience of the backend, the
 group claim and a context pattern created after the import. Not tested
 inside the container.
 ```
+{%- endif %}

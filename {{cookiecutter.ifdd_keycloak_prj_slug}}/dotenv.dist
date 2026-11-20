@@ -44,8 +44,10 @@ IFDD_KEYCLOAK_PROXY_CLIENT_SECRET=<<generate:chars:48:aA0>>
 IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET=<<generate:chars:48:aA0>>
 # {{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}: services writing samples through ifdd-ts-api
 IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET=<<generate:chars:48:aA0>>
+{%- if cookiecutter.ifdd_keycloak_lab_client_id %}
 # {{ cookiecutter.ifdd_keycloak_lab_client_id }}: JupyterHub of ifdd-lab (copied to secrets/oidc_client_secret there)
 IFDD_KEYCLOAK_LAB_CLIENT_SECRET=<<generate:chars:48:aA0>>
+{%- endif %}
 {%- set extra_realms = cookiecutter.ifdd_keycloak_extra_realms.split(",") | map("trim") | reject("equalto", "") | list %}
 {%- for realm in extra_realms %}
 {%- set suffix = realm | replace(".", "_") | replace("-", "_") | upper %}
@@ -60,7 +62,9 @@ IFDD_KEYCLOAK_TS_CLIENT_SECRET_{{ suffix }}=<<generate:chars:48:aA0>>
 IFDD_KEYCLOAK_PROXY_CLIENT_SECRET_{{ suffix }}=<<generate:chars:48:aA0>>
 IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET_{{ suffix }}=<<generate:chars:48:aA0>>
 IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET_{{ suffix }}=<<generate:chars:48:aA0>>
+{%- if cookiecutter.ifdd_keycloak_lab_client_id %}
 IFDD_KEYCLOAK_LAB_CLIENT_SECRET_{{ suffix }}=<<generate:chars:48:aA0>>
+{%- endif %}
 {%- endfor %}
 
 # Owner of the database dumps in ./backups: the backup service runs with this

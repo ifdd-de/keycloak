@@ -142,12 +142,18 @@ def suffix_of(name):
     return re.sub(r"[^A-Za-z0-9]", "_", name).upper()
 
 
+def clients_of(fixture_name):
+    """The secret names of the fixture's clients: without ifdd-lab no LAB."""
+    return [c for c in CLIENTS if c != "LAB" or has_lab(fixture_name)]
+
+
 def test_every_further_realm_gets_secrets_of_its_own(instance, fixture_name):
     """Shared secrets would make one stage's secret every stage's secret."""
     env = env_of(instance)
     secrets = {k: v for k, v in env.items() if re.fullmatch(r"IFDD_KEYCLOAK_[A-Z]+_CLIENT_SECRET(_\w+)?", k)}
-    expected = {f"IFDD_KEYCLOAK_{c}_CLIENT_SECRET" for c in CLIENTS}
-    expected |= {f"IFDD_KEYCLOAK_{c}_CLIENT_SECRET_{suffix_of(r)}" for c in CLIENTS
+    clients = clients_of(fixture_name)
+    expected = {f"IFDD_KEYCLOAK_{c}_CLIENT_SECRET" for c in clients}
+    expected |= {f"IFDD_KEYCLOAK_{c}_CLIENT_SECRET_{suffix_of(r)}" for c in clients
                  for r in extra_realms_of(fixture_name)}
     assert set(secrets) == expected
     assert len(set(secrets.values())) == len(secrets), "two secrets have the same value"
@@ -158,7 +164,7 @@ def test_compose_passes_the_secrets_of_every_further_realm(instance, fixture_nam
     for name in ("docker-compose-production.yml", "docker-compose-development.yml"):
         env = yaml.safe_load((instance / name).read_text())["services"]["keycloak"]["environment"]
         for realm_name in extra_realms_of(fixture_name):
-            for client in CLIENTS:
+            for client in clients_of(fixture_name):
                 var = f"IFDD_KEYCLOAK_{client}_CLIENT_SECRET_{suffix_of(realm_name)}"
                 assert env[var] == "${" + var + ":?set in .env}", (name, var)
 
@@ -421,9 +427,16 @@ def test_values_file_without_ts_api_still_loads(instance):
     assert "ifdd-ts-api" not in realm["roles"]["client"]
 
 
-def test_lab_client(instance):
+def has_lab(fixture_name):
+    ctx = yaml.safe_load(fixture_name.read_text())["default_context"]
+    return ctx.get("ifdd_keycloak_lab_client_id", "ifdd-lab") != ""
+
+
+def test_lab_client(instance, fixture_name):
     """ifdd-lab: login with PKCE, groups, audience of ifdd-be, every role of the
     user in the token (delegation), long sessions."""
+    if not has_lab(fixture_name):
+        pytest.skip("fixture without ifdd-lab")
     realm = realm_of(instance)[1]
     lab = next(c for c in realm["clients"] if c["clientId"] == "ifdd-lab")
     assert not lab["publicClient"] and lab["secret"] == "${IFDD_KEYCLOAK_LAB_CLIENT_SECRET}"
@@ -441,16 +454,36 @@ def test_lab_client(instance):
     assert not [u for u in realm["users"] if u["serviceAccountClientId"] == "ifdd-lab"]
 
 
-def test_session_idle_of_every_client(instance):
-    """The realm allows 8 h idle for ifdd-lab; every other client keeps 30 min.
-    Keycloak 26.8.1 refuses a client value above the realm's."""
+def test_session_idle_of_every_client(instance, fixture_name):
+    """With ifdd-lab the realm allows 8 h idle for its client; every other
+    client keeps 30 min. Without it the realm stays at 30 min. Keycloak 26.8.1
+    refuses a client value above the realm's."""
     realm = realm_of(instance)[1]
-    assert realm["ssoSessionIdleTimeout"] == 28800
     idle = {c["clientId"]: int(c["attributes"]["client.session.idle.timeout"]) for c in realm["clients"]}
-    assert idle.pop("ifdd-lab") == 28800
+    if has_lab(fixture_name):
+        assert realm["ssoSessionIdleTimeout"] == 28800
+        assert idle.pop("ifdd-lab") == 28800
+    else:
+        assert realm["ssoSessionIdleTimeout"] == 1800
     assert set(idle.values()) == {1800}
+    assert all(i <= realm["ssoSessionIdleTimeout"] for i in idle.values())
     assert all(int(c["attributes"].get("client.session.max.lifespan", 0)) <= realm["ssoSessionMaxLifespan"]
                for c in realm["clients"])
+
+
+def test_installation_without_lab(tmp_path):
+    """ifdd_keycloak_lab_client_id empty: no lab client, no lab groups, no
+    secret in .env or compose, no lab sections in the realm page."""
+    inst = render(tmp_path, ROOT / "tests" / "fixtures" / "no-lab.yaml")
+    realm = realm_of(inst)[1]
+    assert not [c for c in realm["clients"] if "lab" in c["clientId"]]
+    assert not {"ifdd_lab_users", "ifdd_lab_admins"} & {g["name"] for g in realm["groups"]}
+    assert "[clients.lab]" not in (inst / "realm" / "values.toml").read_text()
+    for name in (".env", "docker-compose-production.yml", "docker-compose-development.yml"):
+        assert "IFDD_KEYCLOAK_LAB_CLIENT_SECRET" not in (inst / name).read_text(), name
+    for lang in ("en", "de"):
+        page = (inst / "docs" / lang / "realm.md").read_text()
+        assert "oauth_callback" not in page and "ifdd_lab_users" not in page, lang
 
 
 def test_values_file_without_lab_still_loads(instance):

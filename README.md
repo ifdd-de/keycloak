@@ -67,7 +67,7 @@ expect without repeating values.
 | `ifdd_keycloak_ts_ingest_client_id` | `ifdd-ts-ingest` | client credentials for services that write samples through ifdd-ts-api |
 | `ifdd_proxy_oidc_client_id`, `ifdd_wf_host` | `ifdd-proxy`, `wf.example.org` | oauth2-proxy of ifdd-proxy (redirect `https://<wf host>/oauth2/callback`) |
 | `ifdd_keycloak_wf_admin_group` | `ifdd_wf_admins` | group admitted to ifdd-wf; keep equal to `ifdd_wf_sso_group` |
-| `ifdd_keycloak_lab_client_id`, `ifdd_lab_host` | `ifdd-lab`, `lab.example.org` | JupyterHub of ifdd-lab (redirect `https://<lab host>/hub/oauth_callback`); full scope, so notebooks act with the rights of the user; 8 h session idle. **Shared** with `ifdd-de/lab` |
+| `ifdd_keycloak_lab_client_id`, `ifdd_lab_host` | `ifdd-lab`, `lab.example.org` | JupyterHub of ifdd-lab (redirect `https://<lab host>/hub/oauth_callback`); full scope, so notebooks act with the rights of the user; 8 h session idle. Empty: no ifdd-lab in the installation, so no lab client, no lab groups, no secret and 30 min SSO idle in the realm. **Shared** with `ifdd-de/lab` |
 | `ifdd_keycloak_lab_users_group`, `ifdd_keycloak_lab_admins_group` | `ifdd_lab_users`, `ifdd_lab_admins` | groups that may log in to ifdd-lab and that administer its hub. **Shared** with `ifdd-de/lab` |
 | `ifdd_keycloak_proxy_gate_hosts` | `ifdd_wf_host` | comma-separated hosts behind the oauth2-proxy gate (its redirect URIs); empty: no host behind the gate, e.g. without wf. **Shared** with `ifdd-de/proxy`, whose default is empty |
 | `ifdd_context_root` | `ifdd.de` | root of the context names: a context pattern (client role of the backend client) for every domain context, its group `ifdd_ctx_<root>`, and granted to the service accounts of api, ct and ts |
