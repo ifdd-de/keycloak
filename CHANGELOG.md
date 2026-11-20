@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- CI: GitHub Actions pinned to commit SHAs (version as comment),
+  `persist-credentials: false` on every checkout, top-level read-only
+  `permissions` where they were missing; the same in the workflows of the
+  instance (there also raised to the actions' current major versions).
 - `ifdd_keycloak_lab_client_id` may be empty for an installation without
   ifdd-lab: then the realm has no lab client and no lab groups, `.env` and the
   compose files carry no lab secret, the realm page has no lab sections, and
