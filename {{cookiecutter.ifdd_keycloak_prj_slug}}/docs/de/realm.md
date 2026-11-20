@@ -134,6 +134,7 @@ UI prüfen die Client-Rollen (`resource_access`).
 | `{{ cookiecutter.ifdd_keycloak_group_nodes_writers }}` | `{{ cookiecutter.ifdd_be_role_nodes_read }}`, `{{ cookiecutter.ifdd_keycloak_role_nodes_write }}` |
 | `{{ cookiecutter.ifdd_keycloak_group_nodes_privileged }}` | `{{ cookiecutter.ifdd_be_role_nodes_read }}`, `{{ cookiecutter.ifdd_keycloak_role_nodes_priv }}` |
 | `{{ cookiecutter.ifdd_keycloak_wf_admin_group }}` | nur Mitgliedschaft (Claim `groups`), für das Login-Gate von wf |
+| `{{ cookiecutter.ifdd_keycloak_lab_users_group }}`, `{{ cookiecutter.ifdd_keycloak_lab_admins_group }}` | nur Mitgliedschaft (Claim `groups`): darf sich bei lab anmelden, verwaltet lab |
 | `ifdd_ctx_{{ cookiecutter.ifdd_context_root }}` | das Kontextmuster `{{ cookiecutter.ifdd_context_root }}` |
 
 ## Clients
@@ -148,6 +149,7 @@ UI prüfen die Client-Rollen (`resource_access`).
 | `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | vertraulich | Authorization Code mit PKCE S256 | {% for host in gate_hosts %}`https://{{ host }}/oauth2/callback`{{ ", " if not loop.last else "" }}{% else %}keine{% endfor %} |
 | `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` | vertraulich | keine (trägt die Rollen von ts-api) | keine |
 | `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | vertraulich | Client Credentials | keine |
+| `{{ cookiecutter.ifdd_keycloak_lab_client_id }}` | vertraulich | Authorization Code mit PKCE S256 | `https://{{ cookiecutter.ifdd_lab_host }}/hub/oauth_callback` |
 
 Die Redirect-URIs des Login-Gates kommen aus
 `ifdd_keycloak_proxy_gate_hosts`: eine je Host hinter oauth2-proxy. Leer
@@ -155,6 +157,22 @@ heißt: kein Host hinter dem Gate; der Client behält sein Secret, hat aber
 keine Redirect-URIs, ein Login über ihn scheitert also. Welche
 Rollen in die Tokens jedes Clients gelangen und was die Service-Accounts
 halten, steht in `realm/OVERVIEW.md`.
+
+### Sitzungen
+
+Der Realm hält eine untätige SSO-Sitzung 8 Stunden, weil der Hub von lab
+(`{{ cookiecutter.ifdd_keycloak_lab_client_id }}`) seine Sitzungen so lange
+hält (Leerlauf 8 h, höchstens 24 h): Arbeit mit Notebooks dauert Stunden,
+und der Hub erneuert die Tokens. Keycloak lehnt am Client einen Wert über dem
+des Realms ab (Keycloak 26.8.1); deshalb setzt der Realm die Obergrenze, und
+jeder andere Client dieses Templates behält mit einer eigenen Einstellung 30
+Minuten (`client.session.idle.timeout`). Die eingebauten Clients von Keycloak
+(Account-Konsole) folgen dem Realm.
+
+Der lab-Client hat Full Scope: Seine Tokens tragen jede Rolle des Benutzers,
+auch später angelegte Kontextmuster, weil Notebooks in ifdd-be mit den
+Rechten der angemeldeten Person handeln. Er trägt die Audience von ifdd-be
+und den Gruppen-Claim.
 
 ## Kontextmuster
 
@@ -358,4 +376,59 @@ nicht nötig (der Client hat Full Scope) und schadet nicht.
 Getestet mit `kcadm.sh` aus der Distribution von Keycloak 26.8.0 gegen
 `http://localhost:8080` und einen aus dem vorigen Template importierten
 Realm; nicht getestet im Container.
+```
+
+### Den lab-Client ergänzen
+
+Einem Realm, der vor lab importiert wurde, fehlen der Client
+`{{ cookiecutter.ifdd_keycloak_lab_client_id }}` und seine Gruppen, und er hat
+30 Minuten SSO-Leerlauf; die Compose-Dateien verlangen von nun an
+`IFDD_KEYCLOAK_LAB_CLIENT_SECRET`. Sitzungszeiten setzen, Client und Gruppen
+mit `kcadm.sh` im laufenden Container anlegen, als Admin des master-Realms:
+
+```bash
+docker compose -f docker-compose-production.yml exec keycloak bash
+```
+
+```bash
+# inside the container
+REALM={{ cookiecutter.ifdd_keycloak_realm }} LAB={{ cookiecutter.ifdd_keycloak_lab_client_id }} HOST={{ cookiecutter.ifdd_lab_host }} USERS={{ cookiecutter.ifdd_keycloak_lab_users_group }} ADMINS={{ cookiecutter.ifdd_keycloak_lab_admins_group }} READ={{ cookiecutter.ifdd_be_role_nodes_read }}
+CLIENTS="{{ cookiecutter.ifdd_oidc_backend_client_id }} {{ cookiecutter.ifdd_keycloak_api_client_id }} {{ cookiecutter.ifdd_keycloak_ct_client_id }} {{ cookiecutter.ifdd_keycloak_useradmin_client_id }} {{ cookiecutter.ifdd_ts_oidc_client_id }} {{ cookiecutter.ifdd_proxy_oidc_client_id }} {{ cookiecutter.ifdd_ts_api_oidc_client_id }} {{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}"
+kcadm() { /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm.config; }
+kcadm config credentials --server http://localhost:8080 --realm master --user <admin>  # asks for the password
+# 8 h for the realm, 30 min for every client that exists already
+kcadm update "realms/$REALM" -s ssoSessionIdleTimeout=28800
+for client in $CLIENTS; do
+  id=$(kcadm get clients -r "$REALM" -q clientId="$client" --fields id --format csv --noquotes)
+  [ -n "$id" ] && kcadm update "clients/$id" -r "$REALM" -s 'attributes."client.session.idle.timeout"=1800'
+done
+LID=$(kcadm create clients -r "$REALM" -i -s clientId="$LAB" -s name="IFDD Lab (JupyterHub)" \
+  -s publicClient=false -s standardFlowEnabled=true -s directAccessGrantsEnabled=false \
+  -s serviceAccountsEnabled=false -s fullScopeAllowed=true -s rootUrl="https://$HOST/" \
+  -s "redirectUris=[\"https://$HOST/hub/oauth_callback\"]" \
+  -s 'attributes."pkce.code.challenge.method"=S256' \
+  -s "attributes.\"post.logout.redirect.uris\"=https://$HOST/hub/" \
+  -s 'attributes."client.session.idle.timeout"=28800' \
+  -s 'attributes."client.session.max.lifespan"=86400')
+for scope in "$READ" groups; do
+  SID=$(kcadm get client-scopes -r "$REALM" --fields id,name --format csv --noquotes | grep ",$scope\$" | cut -d, -f1)
+  kcadm update "clients/$LID/default-client-scopes/$SID" -r "$REALM"
+done
+kcadm delete "clients/$LID/optional-client-scopes/$(kcadm get client-scopes -r "$REALM" --fields id,name --format csv --noquotes | grep ',offline_access$' | cut -d, -f1)" -r "$REALM" 2>/dev/null || true
+kcadm create groups -r "$REALM" -s name="$USERS"
+kcadm create groups -r "$REALM" -s name="$ADMINS"
+kcadm get "clients/$LID/client-secret" -r "$REALM" --fields value --format csv --noquotes
+rm /tmp/kcadm.config
+exit
+```
+
+Das ausgegebene Secret als `IFDD_KEYCLOAK_LAB_CLIENT_SECRET` in die `.env`
+eintragen und in `secrets/oidc_client_secret` der lab-Instanz.
+
+```{note}
+Getestet mit `kcadm.sh` aus der Distribution von Keycloak 26.8.1 gegen einen
+lokalen Server und einen aus dem Template 26.11.2 importierten Realm; danach
+hatte ein Token des Clients eine Refresh-Laufzeit von 8 h, die Audience des
+Backends, den Gruppen-Claim und ein nach dem Import angelegtes Kontextmuster.
+Nicht getestet im Container.
 ```

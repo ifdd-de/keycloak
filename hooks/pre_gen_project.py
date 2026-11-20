@@ -40,6 +40,10 @@ VALUES = {
     "ifdd_proxy_oidc_client_id": "{{ cookiecutter.ifdd_proxy_oidc_client_id }}",
     "ifdd_wf_host": "{{ cookiecutter.ifdd_wf_host }}",
     "ifdd_keycloak_wf_admin_group": "{{ cookiecutter.ifdd_keycloak_wf_admin_group }}",
+    "ifdd_lab_host": "{{ cookiecutter.ifdd_lab_host }}",
+    "ifdd_keycloak_lab_client_id": "{{ cookiecutter.ifdd_keycloak_lab_client_id }}",
+    "ifdd_keycloak_lab_users_group": "{{ cookiecutter.ifdd_keycloak_lab_users_group }}",
+    "ifdd_keycloak_lab_admins_group": "{{ cookiecutter.ifdd_keycloak_lab_admins_group }}",
     "ifdd_keycloak_group_nodes_readers": "{{ cookiecutter.ifdd_keycloak_group_nodes_readers }}",
     "ifdd_keycloak_group_nodes_writers": "{{ cookiecutter.ifdd_keycloak_group_nodes_writers }}",
     "ifdd_keycloak_group_nodes_privileged": "{{ cookiecutter.ifdd_keycloak_group_nodes_privileged }}",
@@ -70,7 +74,7 @@ check("ifdd_keycloak_prj_name", re.compile(r'^[^"\\\x00-\x1f]+$'),
       "a name without double quotes, backslashes or control characters")
 check("ifdd_keycloak_prj_slug", re.compile(r"^[a-z0-9][a-z0-9_-]*$"), "lowercase letters, digits, '-', '_'")
 check("ifdd_oidc_realm", re.compile(r"^https://[^/]+/realms/[^/]+/?$"), "https://<host>/realms/<realm>")
-for key in ("ifdd_keycloak_host", "ifdd_ts_host", "ifdd_wf_host"):
+for key in ("ifdd_keycloak_host", "ifdd_ts_host", "ifdd_wf_host", "ifdd_lab_host"):
     check(key, HOST, "a host name without scheme or path")
 for key in ("ifdd_be_url", "ifdd_ui_url"):
     check(key, URL, "http(s)://host[/path] without query")
@@ -85,7 +89,9 @@ for key in ("ifdd_keycloak_realm", "ifdd_keycloak_admin_user", "ifdd_proxy_netwo
             "ifdd_proxy_oidc_client_id", "ifdd_keycloak_wf_admin_group",
             "ifdd_keycloak_role_nodes_priv", "ifdd_keycloak_group_nodes_readers",
             "ifdd_keycloak_group_nodes_writers", "ifdd_keycloak_group_nodes_privileged",
-            "ifdd_ts_api_oidc_client_id", "ifdd_keycloak_ts_ingest_client_id"):
+            "ifdd_ts_api_oidc_client_id", "ifdd_keycloak_ts_ingest_client_id",
+            "ifdd_keycloak_lab_client_id", "ifdd_keycloak_lab_users_group",
+            "ifdd_keycloak_lab_admins_group"):
     check(key, NAME, "letters, digits, '.', '_', '-' (no spaces, no quotes)")
 # Roles of ifdd-ts-api: a name with a dot would be read as a store pattern.
 for key in ("ifdd_ts_api_role_read", "ifdd_ts_api_role_write"):
@@ -154,7 +160,8 @@ if not VALUES["ifdd_keycloak_dev_port"].isdigit() or not 1 <= int(VALUES["ifdd_k
 clients = [VALUES[k] for k in ("ifdd_oidc_backend_client_id", "ifdd_keycloak_api_client_id",
                                 "ifdd_keycloak_ct_client_id", "ifdd_keycloak_useradmin_client_id",
                                 "ifdd_ts_oidc_client_id", "ifdd_proxy_oidc_client_id",
-                                "ifdd_ts_api_oidc_client_id", "ifdd_keycloak_ts_ingest_client_id")]
+                                "ifdd_ts_api_oidc_client_id", "ifdd_keycloak_ts_ingest_client_id",
+                                "ifdd_keycloak_lab_client_id")]
 if len(set(clients)) != len(clients):
     errors.append(f"client ids must differ: {clients}")
 roles = [VALUES[k] for k in ("ifdd_be_role_nodes_read", "ifdd_keycloak_role_nodes_write",
@@ -165,7 +172,8 @@ if len(set(roles)) != len(roles):
     errors.append(f"realm role names must differ: {roles}")
 groups = [VALUES[k] for k in ("ifdd_keycloak_wf_admin_group", "ifdd_keycloak_group_nodes_readers",
                                "ifdd_keycloak_group_nodes_writers",
-                               "ifdd_keycloak_group_nodes_privileged")]
+                               "ifdd_keycloak_group_nodes_privileged",
+                               "ifdd_keycloak_lab_users_group", "ifdd_keycloak_lab_admins_group")]
 if VALUES["ifdd_ts_api_role_read"] == VALUES["ifdd_ts_api_role_write"]:
     errors.append("ifdd_ts_api_role_read and ifdd_ts_api_role_write must differ")
 if len(set(groups)) != len(groups):

@@ -41,6 +41,11 @@ def duration(seconds: int) -> str:
     return f"{seconds} s"
 
 
+def session(client: dict[str, Any]) -> str:
+    idle = client.get("attributes", {}).get("client.session.idle.timeout")
+    return duration(int(idle)) if idle else "realm"
+
+
 def flows(client: dict[str, Any]) -> list[str]:
     pkce = client.get("attributes", {}).get("pkce.code.challenge.method")
     code = "authorization code" + (f" (PKCE {pkce})" if pkce else "")
@@ -137,9 +142,10 @@ def render(realm: dict[str, Any], builtin: Builtin, values_file: str = "realm/va
         rows.append([f"`{c['clientId']}`", c.get("name", ""), kind, flows(c), c["redirectUris"],
                      [f"`{s}`" for s in extra],
                      [mapper_summary(m) for m in c.get("protocolMappers", [])],
-                     "yes" if c["fullScopeAllowed"] else "no"])
+                     "yes" if c["fullScopeAllowed"] else "no",
+                     session(c)])
     out += table(["Client", "Name", "Type", "Flows", "Redirect URIs", "Extra scopes", "Mappers",
-                  "Full scope"], rows)
+                  "Full scope", "Session idle"], rows)
     scoped: dict[str, tuple[list[str], dict[str, list[str]]]] = {}
     for m in realm.get("scopeMappings", []):
         scoped.setdefault(m["client"], ([], {}))[0].extend(m["roles"])

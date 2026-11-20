@@ -4,8 +4,12 @@ Common rules (review of 2026-10-03, following RFC 9700):
 - no implicit flow, no password grant;
 - public clients must use PKCE (S256);
 - no client offers the scope offline_access (no offline tokens);
-- only clients that call ifdd-be get the scope with its audience.
+- only clients that call ifdd-be get the scope with its audience;
+- sessions: 30 min idle for every client, 8 h for the hub of ifdd-lab (the
+  realm allows 8 h; a client may only shorten it).
 """
+from dataclasses import replace
+
 from . import mappers, roles
 from .builtin import Builtin
 from .model import Client, Grant, ProtocolMapper
@@ -17,6 +21,12 @@ OFFLINE = "offline_access"
 # docs_ui.OAUTH2_REDIRECT_PATH): "Authorize" on <be_url>/docs returns there.
 BE_DOCS_REDIRECT = "/docs/oauth2-redirect"
 PKCE = {"pkce.code.challenge.method": "S256"}
+# Client session idle timeouts (s). The realm's SSO idle timeout is the upper
+# bound; Keycloak 26.8.1 refuses a longer value for a client.
+SESSION_IDLE = "1800"
+LAB_SESSION_IDLE = "28800"
+LAB_SESSION_MAX = "86400"
+SESSION = "client.session.idle.timeout"
 
 
 def optional_scopes(b: Builtin) -> list[str]:
@@ -175,8 +185,36 @@ def proxy(v: Values, b: Builtin) -> Client:
     )
 
 
+def lab(v: Values, b: Builtin) -> Client:
+    """JupyterHub of ifdd-lab: login (code flow with PKCE), groups in the
+    claim 'groups', and the audience of ifdd-be. Full scope: the tokens carry
+    every role of the user, also context patterns created later, because
+    notebooks act in ifdd-be with the rights of the person logged in. Long
+    sessions (8 h idle) for long notebook work; the hub renews the tokens."""
+    url = "https://" + v.lab_host
+    return Client(
+        client_id=v.lab_client,
+        name="IFDD Lab (JupyterHub)",
+        description="JupyterHub login; tokens carry the user's roles for ifdd-be (delegation).",
+        secret_env="IFDD_KEYCLOAK_LAB_CLIENT_SECRET",
+        standard_flow=True,
+        root_url=url + "/",
+        redirect_uris=[url + "/hub/oauth_callback"],
+        full_scope_allowed=True,
+        attributes=PKCE | {"post.logout.redirect.uris": url + "/hub/",
+                           SESSION: LAB_SESSION_IDLE,
+                           "client.session.max.lifespan": LAB_SESSION_MAX},
+        default_scopes=b.default_scopes + [v.roles.nodes_read, GROUPS],
+        optional_scopes=optional_scopes(b),
+    )
+
+
 def clients(v: Values, b: Builtin) -> list[Client]:
     result = [backend(v, b), api_script(v, b), ct(v, b), user_admin(v, b), ts(v, b), proxy(v, b)]
     if v.ts_api_client:
         result += [ts_api(v, b), ts_ingest(v, b)]
+    # Every client without a session setting of its own keeps 30 min idle.
+    result = [replace(c, attributes=c.attributes | {SESSION: SESSION_IDLE}) for c in result]
+    if v.lab_client:
+        result.append(lab(v, b))
     return result

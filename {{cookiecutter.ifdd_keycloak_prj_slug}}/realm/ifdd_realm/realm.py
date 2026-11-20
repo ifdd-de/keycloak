@@ -11,7 +11,10 @@ SETTINGS: dict[str, Any] = {
     "loginWithEmailAllowed": False,
     "accessTokenLifespan": 1800,          # s; Keycloak default 300
     "accessCodeLifespan": 300,            # s; default 60
-    "ssoSessionIdleTimeout": 1800,        # s
+    # 8 h, so that the client of ifdd-lab may keep its sessions that long
+    # (a client cannot exceed the realm, Keycloak 26.8.1); every other client
+    # stays at 30 min with a setting of its own (clients.SESSION_IDLE).
+    "ssoSessionIdleTimeout": 28800,       # s
     "ssoSessionMaxLifespan": 86400,       # s; default 36000
     "oauth2DeviceCodeLifespan": 1800,     # s; default 600
     # Refresh token rotation: each refresh token is valid once (RFC 9700 4.14).
