@@ -5,7 +5,7 @@
   "loginWithEmailAllowed": false,
   "accessTokenLifespan": 1800,
   "accessCodeLifespan": 300,
-  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionIdleTimeout": 28800,
   "ssoSessionMaxLifespan": 86400,
   "oauth2DeviceCodeLifespan": 1800,
   "revokeRefreshToken": true,
@@ -212,6 +212,16 @@
           "ifdd.de"
         ]
       }
+    },
+    {
+      "name": "ifdd_lab_users",
+      "path": "/ifdd_lab_users",
+      "subGroups": []
+    },
+    {
+      "name": "ifdd_lab_admins",
+      "path": "/ifdd_lab_admins",
+      "subGroups": []
     }
   ],
   "clientScopes": [
@@ -1111,7 +1121,8 @@
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "https://ui.example.org",
-        "backchannel.logout.session.required": "true"
+        "backchannel.logout.session.required": "true",
+        "client.session.idle.timeout": "1800"
       },
       "protocolMappers": [
         {
@@ -1170,7 +1181,8 @@
       "fullScopeAllowed": true,
       "attributes": {
         "use.refresh.tokens": "true",
-        "client_credentials.use_refresh_token": "true"
+        "client_credentials.use_refresh_token": "true",
+        "client.session.idle.timeout": "1800"
       },
       "protocolMappers": [
         {
@@ -1224,7 +1236,9 @@
       "webOrigins": [],
       "frontchannelLogout": true,
       "fullScopeAllowed": false,
-      "attributes": {},
+      "attributes": {
+        "client.session.idle.timeout": "1800"
+      },
       "protocolMappers": [],
       "defaultClientScopes": [
         "role_list",
@@ -1262,7 +1276,9 @@
       "webOrigins": [],
       "frontchannelLogout": true,
       "fullScopeAllowed": false,
-      "attributes": {},
+      "attributes": {
+        "client.session.idle.timeout": "1800"
+      },
       "protocolMappers": [],
       "defaultClientScopes": [
         "role_list",
@@ -1306,7 +1322,8 @@
       "fullScopeAllowed": false,
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "https://ts.example.org/*"
+        "post.logout.redirect.uris": "https://ts.example.org/*",
+        "client.session.idle.timeout": "1800"
       },
       "protocolMappers": [],
       "defaultClientScopes": [
@@ -1349,7 +1366,8 @@
       "fullScopeAllowed": true,
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "https://wf.example.org/*"
+        "post.logout.redirect.uris": "https://wf.example.org/*",
+        "client.session.idle.timeout": "1800"
       },
       "protocolMappers": [
         {
@@ -1402,7 +1420,9 @@
       "webOrigins": [],
       "frontchannelLogout": true,
       "fullScopeAllowed": true,
-      "attributes": {},
+      "attributes": {
+        "client.session.idle.timeout": "1800"
+      },
       "protocolMappers": [],
       "defaultClientScopes": [
         "role_list",
@@ -1439,7 +1459,9 @@
       "webOrigins": [],
       "frontchannelLogout": true,
       "fullScopeAllowed": false,
-      "attributes": {},
+      "attributes": {
+        "client.session.idle.timeout": "1800"
+      },
       "protocolMappers": [],
       "defaultClientScopes": [
         "role_list",
@@ -1451,6 +1473,53 @@
         "web-origins",
         "acr",
         "basic"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "microprofile-jwt",
+        "organization"
+      ]
+    },
+    {
+      "clientId": "ifdd-lab",
+      "name": "IFDD Lab (JupyterHub)",
+      "description": "JupyterHub login; tokens carry the user's roles for ifdd-be (delegation).",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${IFDD_KEYCLOAK_LAB_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "https://lab.example.org/",
+      "redirectUris": [
+        "https://lab.example.org/hub/oauth_callback"
+      ],
+      "webOrigins": [],
+      "frontchannelLogout": true,
+      "fullScopeAllowed": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://lab.example.org/hub/",
+        "client.session.idle.timeout": "28800",
+        "client.session.max.lifespan": "86400"
+      },
+      "protocolMappers": [],
+      "defaultClientScopes": [
+        "role_list",
+        "saml_organization",
+        "AuthnContextClassRef",
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "acr",
+        "basic",
+        "ifdd_nodes_ro",
+        "groups"
       ],
       "optionalClientScopes": [
         "address",

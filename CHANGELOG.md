@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased]
+
+- Client `ifdd_keycloak_lab_client_id` (default `ifdd-lab`) for the
+  JupyterHub of `ifdd-de/lab`: confidential, code flow with PKCE S256,
+  redirect `https://<ifdd_lab_host>/hub/oauth_callback`, the audience of
+  ifdd-be and the group claim. Full scope: its tokens carry every role of the
+  user, also context patterns created later, because notebooks act with the
+  rights of the person logged in. Secret `IFDD_KEYCLOAK_LAB_CLIENT_SECRET`
+  (also per further realm).
+- Groups `ifdd_keycloak_lab_users_group` and `ifdd_keycloak_lab_admins_group`
+  (membership only, claim `groups`).
+- Sessions: the realm keeps idle SSO sessions for 8 h (before: 30 min);
+  every client of the template except the lab client keeps 30 min with
+  `client.session.idle.timeout`, the lab client gets 8 h idle and 24 h at
+  most. Keycloak 26.8.1 refuses a client value above the realm's, and a realm
+  file with 30 min in the realm and 8 h in a client fails to import. Keycloak's
+  built-in clients (account console) follow the realm.
+- `realm/OVERVIEW.md` shows the session idle time of every client.
+- Values files without `[clients.lab]` still load (no lab client, no lab
+  groups).
+- Realm page (en, de): groups, client, sessions, and how to add the client to
+  an existing realm with `kcadm.sh` (tested against Keycloak 26.8.1).
+
 ## [26.11.2] - 2026-11-18
 
 - `ifdd_keycloak_proxy_gate_hosts` may be empty: no host behind the login

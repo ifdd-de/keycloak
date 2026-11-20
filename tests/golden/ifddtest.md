@@ -10,7 +10,7 @@ Import file: `realm/import/ifddtest-realm.json` (read by Keycloak on its first s
 |---|---|
 | Access token lifespan | 1800 s (30 min) |
 | Authorization code lifespan | 300 s (5 min) |
-| SSO session idle timeout | 1800 s (30 min) |
+| SSO session idle timeout | 28800 s (8 h) |
 | SSO session max lifespan | 86400 s (1 d) |
 | Device code lifespan | 1800 s (30 min) |
 | Display name | Keycloak |
@@ -55,6 +55,8 @@ Client roles (checked in `resource_access` by ifdd-be and ifdd-ui, and by ifdd-t
 | `ifdd_nodes_privileged` | `ifdd_nodes_ro`<br>`ifdd_nodes_priv`<br>`ifdd_nodes_ro` of `ifddtest`<br>`ifdd_nodes_priv` of `ifddtest` |
 | `ifdd_wf_admins` | membership only (claim `groups`) |
 | `ifdd_ctx_ifdd.de` | `ifdd.de` of `ifddtest` |
+| `ifdd_lab_users` | membership only (claim `groups`) |
+| `ifdd_lab_admins` | membership only (claim `groups`) |
 
 ## Client scopes
 
@@ -67,16 +69,17 @@ Plus the 15 built-in scopes of Keycloak (`ifdd_realm/builtin/`), defaults: `role
 
 ## Clients
 
-| Client | Name | Type | Flows | Redirect URIs | Extra scopes | Mappers | Full scope |
-|---|---|---|---|---|---|---|---|
-| `ifddtest` | – | public | authorization code (PKCE S256) | https://ui/authentication/callback<br>https://ui/authentication/silent-callback<br>https://rest/docs/oauth2-redirect | `ifdd_nodes_ro` | client roles of `ifddtest` in ID token, userinfo | no |
-| `ifdd-api-script` | – | confidential, secret `IFDD_KEYCLOAK_API_CLIENT_SECRET` | client credentials | – | `ifdd_nodes_ro` | aud += ifdd-api-script, ifddtest | yes |
-| `ifdd-ct` | IFDD Core Tools | confidential, secret `IFDD_KEYCLOAK_CT_CLIENT_SECRET` | client credentials | – | `ifdd_nodes_ro` | – | no |
-| `ifdd-user-admin` | IFDD User Admin | confidential, secret `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | client credentials | – | – | – | no |
-| `ifdd-ts` | IFDD Time Series (Grafana) | confidential, secret `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | authorization code (PKCE S256)<br>client credentials | https://ts/login/generic_oauth | `ifdd_nodes_ro` | – | no |
-| `ifdd-proxy` | IFDD Proxy (oauth2-proxy) | confidential, secret `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | authorization code (PKCE S256) | https://wf/oauth2/callback | `groups` | aud += ifdd-proxy | yes |
-| `ifdd-ts-api` | IFDD Time Series API | confidential, secret `IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET` | – | – | – | – | yes |
-| `ifdd-ts-ingest` | IFDD Time Series Ingest | confidential, secret `IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET` | client credentials | – | – | – | no |
+| Client | Name | Type | Flows | Redirect URIs | Extra scopes | Mappers | Full scope | Session idle |
+|---|---|---|---|---|---|---|---|---|
+| `ifddtest` | – | public | authorization code (PKCE S256) | https://ui/authentication/callback<br>https://ui/authentication/silent-callback<br>https://rest/docs/oauth2-redirect | `ifdd_nodes_ro` | client roles of `ifddtest` in ID token, userinfo | no | 1800 s (30 min) |
+| `ifdd-api-script` | – | confidential, secret `IFDD_KEYCLOAK_API_CLIENT_SECRET` | client credentials | – | `ifdd_nodes_ro` | aud += ifdd-api-script, ifddtest | yes | 1800 s (30 min) |
+| `ifdd-ct` | IFDD Core Tools | confidential, secret `IFDD_KEYCLOAK_CT_CLIENT_SECRET` | client credentials | – | `ifdd_nodes_ro` | – | no | 1800 s (30 min) |
+| `ifdd-user-admin` | IFDD User Admin | confidential, secret `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | client credentials | – | – | – | no | 1800 s (30 min) |
+| `ifdd-ts` | IFDD Time Series (Grafana) | confidential, secret `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | authorization code (PKCE S256)<br>client credentials | https://ts/login/generic_oauth | `ifdd_nodes_ro` | – | no | 1800 s (30 min) |
+| `ifdd-proxy` | IFDD Proxy (oauth2-proxy) | confidential, secret `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | authorization code (PKCE S256) | https://wf/oauth2/callback | `groups` | aud += ifdd-proxy | yes | 1800 s (30 min) |
+| `ifdd-ts-api` | IFDD Time Series API | confidential, secret `IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET` | – | – | – | – | yes | 1800 s (30 min) |
+| `ifdd-ts-ingest` | IFDD Time Series Ingest | confidential, secret `IFDD_KEYCLOAK_TSINGEST_CLIENT_SECRET` | client credentials | – | – | – | no | 1800 s (30 min) |
+| `ifdd-lab` | IFDD Lab (JupyterHub) | confidential, secret `IFDD_KEYCLOAK_LAB_CLIENT_SECRET` | authorization code (PKCE S256) | https://lab.example.org/hub/oauth_callback | `ifdd_nodes_ro`<br>`groups` | – | yes | 28800 s (8 h) |
 
 Roles allowed into the tokens of clients without full scope (besides their own client roles):
 

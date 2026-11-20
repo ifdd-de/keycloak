@@ -30,6 +30,9 @@ class Groups:
     nodes_readers: str
     nodes_writers: str
     nodes_privileged: str
+    # ifdd-lab; empty in values files written before it existed
+    lab_users: str = ""
+    lab_admins: str = ""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -55,6 +58,9 @@ class Values:
     # ifdd-ts-api and its ingest client; empty: the realm has neither
     ts_api_client: str = ""
     ts_ingest_client: str = ""
+    # ifdd-lab (JupyterHub); empty: the realm has no lab client
+    lab_client: str = ""
+    lab_host: str = ""
 
 
 def load(path: Path) -> Values:
@@ -82,4 +88,7 @@ def load(path: Path) -> Values:
         # Optional, so that values files written before ts-api still load.
         ts_api_client=clients.get("ts_api", {}).get("id", ""),
         ts_ingest_client=clients.get("ts_ingest", {}).get("id", ""),
+        # Optional, so that values files written before ifdd-lab still load.
+        lab_client=clients.get("lab", {}).get("id", ""),
+        lab_host=clients.get("lab", {}).get("host", ""),
     )

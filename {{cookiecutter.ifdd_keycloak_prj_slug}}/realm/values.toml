@@ -35,6 +35,8 @@ wf_admins = "{{ cookiecutter.ifdd_keycloak_wf_admin_group }}"   # must equal ifd
 nodes_readers = "{{ cookiecutter.ifdd_keycloak_group_nodes_readers }}"        # read nodes
 nodes_writers = "{{ cookiecutter.ifdd_keycloak_group_nodes_writers }}"        # read and write nodes
 nodes_privileged = "{{ cookiecutter.ifdd_keycloak_group_nodes_privileged }}"  # privileged and read
+lab_users = "{{ cookiecutter.ifdd_keycloak_lab_users_group }}"    # may log in to ifdd-lab
+lab_admins = "{{ cookiecutter.ifdd_keycloak_lab_admins_group }}"  # administer ifdd-lab
 
 [clients.backend]                  # public: ifdd-ui login, audience of ifdd-be
 id = "{{ cookiecutter.ifdd_oidc_backend_client_id }}"
@@ -60,6 +62,10 @@ id = "{{ cookiecutter.ifdd_ts_api_oidc_client_id }}"
 
 [clients.ts_ingest]                # services writing samples through ifdd-ts-api
 id = "{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}"
+
+[clients.lab]                      # JupyterHub of ifdd-lab: login, tokens with the user's roles
+id = "{{ cookiecutter.ifdd_keycloak_lab_client_id }}"
+host = "{{ cookiecutter.ifdd_lab_host }}"
 
 [clients.proxy]                    # oauth2-proxy of ifdd-proxy
 id = "{{ cookiecutter.ifdd_proxy_oidc_client_id }}"

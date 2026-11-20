@@ -135,7 +135,7 @@ def test_several_values_files(instance):
 
 # --- secrets of further realms -------------------------------------------------
 
-CLIENTS = ("API", "CT", "USERADMIN", "TS", "PROXY", "TSAPI", "TSINGEST")
+CLIENTS = ("API", "CT", "USERADMIN", "TS", "PROXY", "TSAPI", "TSINGEST", "LAB")
 
 
 def suffix_of(name):
@@ -421,6 +421,49 @@ def test_values_file_without_ts_api_still_loads(instance):
     assert "ifdd-ts-api" not in realm["roles"]["client"]
 
 
+def test_lab_client(instance):
+    """ifdd-lab: login with PKCE, groups, audience of ifdd-be, every role of the
+    user in the token (delegation), long sessions."""
+    realm = realm_of(instance)[1]
+    lab = next(c for c in realm["clients"] if c["clientId"] == "ifdd-lab")
+    assert not lab["publicClient"] and lab["secret"] == "${IFDD_KEYCLOAK_LAB_CLIENT_SECRET}"
+    assert lab["standardFlowEnabled"]
+    assert not (lab["implicitFlowEnabled"] or lab["directAccessGrantsEnabled"] or lab["serviceAccountsEnabled"])
+    assert lab["redirectUris"] == ["https://lab.example.org/hub/oauth_callback"]
+    assert lab["attributes"]["pkce.code.challenge.method"] == "S256"
+    assert lab["attributes"]["post.logout.redirect.uris"] == "https://lab.example.org/hub/"
+    assert lab["fullScopeAllowed"] is True
+    assert {"ifdd_nodes_ro", "groups"} <= set(lab["defaultClientScopes"])
+    assert "offline_access" not in lab["defaultClientScopes"] + lab["optionalClientScopes"]
+    assert lab["attributes"]["client.session.idle.timeout"] == "28800"
+    assert lab["attributes"]["client.session.max.lifespan"] == "86400"
+    assert {g["name"] for g in realm["groups"]} >= {"ifdd_lab_users", "ifdd_lab_admins"}
+    assert not [u for u in realm["users"] if u["serviceAccountClientId"] == "ifdd-lab"]
+
+
+def test_session_idle_of_every_client(instance):
+    """The realm allows 8 h idle for ifdd-lab; every other client keeps 30 min.
+    Keycloak 26.8.1 refuses a client value above the realm's."""
+    realm = realm_of(instance)[1]
+    assert realm["ssoSessionIdleTimeout"] == 28800
+    idle = {c["clientId"]: int(c["attributes"]["client.session.idle.timeout"]) for c in realm["clients"]}
+    assert idle.pop("ifdd-lab") == 28800
+    assert set(idle.values()) == {1800}
+    assert all(int(c["attributes"].get("client.session.max.lifespan", 0)) <= realm["ssoSessionMaxLifespan"]
+               for c in realm["clients"])
+
+
+def test_values_file_without_lab_still_loads(instance):
+    path = further_realm(instance, "aa")
+    text = re.sub(r'(?ms)^\[clients\.lab\].*?(?=^\[)', "", path.read_text())
+    path.write_text(re.sub(r'(?m)^lab_(users|admins) = .*\n', "", text))
+    assert "[clients.lab]" not in path.read_text() and "lab_users" not in path.read_text()
+    assert build(instance, "--values", "realm/values_aa.toml").returncode == 0
+    realm = json.loads((instance / "realm" / "import" / "aa-realm.json").read_text())
+    assert "ifdd-lab" not in {c["clientId"] for c in realm["clients"]}
+    assert not {"ifdd_lab_users", "ifdd_lab_admins"} & {g["name"] for g in realm["groups"]}
+
+
 def test_ui_roles_reach_the_client_side(instance):
     """Pattern 2B: the backend client's own client roles in ID token and userinfo."""
     realm = realm_of(instance)[1]
@@ -576,6 +619,11 @@ def test_compose_is_valid(instance, name):
     {"ifdd_ts_api_role_write": "ifdd_ts_ro"},
     {"ifdd_keycloak_ts_ingest_client_id": "ifdd-ct"},
     {"ifdd_ts_api_oidc_client_id": "ifdd-ts"},
+    # lab: own client id, own group names, a host name
+    {"ifdd_keycloak_lab_client_id": "ifdd-proxy"},
+    {"ifdd_keycloak_lab_admins_group": "ifdd_lab_users"},
+    {"ifdd_keycloak_lab_users_group": "ifdd_wf_admins"},
+    {"ifdd_lab_host": "https://lab.example.org"},
     # further realms: valid names, not the own realm, distinct secret suffixes
     {"ifdd_keycloak_extra_realms": "ifdd"},
     {"ifdd_keycloak_extra_realms": "master"},

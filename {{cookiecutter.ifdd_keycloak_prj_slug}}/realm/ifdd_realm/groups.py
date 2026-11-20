@@ -17,4 +17,7 @@ def groups(v: Values) -> list[Group]:
         Group(name=g.wf_admins),           # admitted to ifdd-wf by oauth2-proxy (claim groups)
         # every domain context; together with a node group (read or write)
         Group(name=CONTEXT_GROUP_PREFIX + v.roles.context_root, grant=roles.context_root(v)),
+    ] + [
+        # admitted to ifdd-lab and its admin page by the hub (claim groups)
+        Group(name=name) for name in (g.lab_users, g.lab_admins) if name and v.lab_client
     ]
