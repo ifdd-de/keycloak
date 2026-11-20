@@ -134,7 +134,9 @@ UI prüfen die Client-Rollen (`resource_access`).
 | `{{ cookiecutter.ifdd_keycloak_group_nodes_writers }}` | `{{ cookiecutter.ifdd_be_role_nodes_read }}`, `{{ cookiecutter.ifdd_keycloak_role_nodes_write }}` |
 | `{{ cookiecutter.ifdd_keycloak_group_nodes_privileged }}` | `{{ cookiecutter.ifdd_be_role_nodes_read }}`, `{{ cookiecutter.ifdd_keycloak_role_nodes_priv }}` |
 | `{{ cookiecutter.ifdd_keycloak_wf_admin_group }}` | nur Mitgliedschaft (Claim `groups`), für das Login-Gate von wf |
+{%- if cookiecutter.ifdd_keycloak_lab_client_id %}
 | `{{ cookiecutter.ifdd_keycloak_lab_users_group }}`, `{{ cookiecutter.ifdd_keycloak_lab_admins_group }}` | nur Mitgliedschaft (Claim `groups`): darf sich bei lab anmelden, verwaltet lab |
+{%- endif %}
 | `ifdd_ctx_{{ cookiecutter.ifdd_context_root }}` | das Kontextmuster `{{ cookiecutter.ifdd_context_root }}` |
 
 ## Clients
@@ -149,7 +151,9 @@ UI prüfen die Client-Rollen (`resource_access`).
 | `{{ cookiecutter.ifdd_proxy_oidc_client_id }}` | vertraulich | Authorization Code mit PKCE S256 | {% for host in gate_hosts %}`https://{{ host }}/oauth2/callback`{{ ", " if not loop.last else "" }}{% else %}keine{% endfor %} |
 | `{{ cookiecutter.ifdd_ts_api_oidc_client_id }}` | vertraulich | keine (trägt die Rollen von ts-api) | keine |
 | `{{ cookiecutter.ifdd_keycloak_ts_ingest_client_id }}` | vertraulich | Client Credentials | keine |
+{%- if cookiecutter.ifdd_keycloak_lab_client_id %}
 | `{{ cookiecutter.ifdd_keycloak_lab_client_id }}` | vertraulich | Authorization Code mit PKCE S256 | `https://{{ cookiecutter.ifdd_lab_host }}/hub/oauth_callback` |
+{%- endif %}
 
 Die Redirect-URIs des Login-Gates kommen aus
 `ifdd_keycloak_proxy_gate_hosts`: eine je Host hinter oauth2-proxy. Leer
@@ -158,6 +162,7 @@ keine Redirect-URIs, ein Login über ihn scheitert also. Welche
 Rollen in die Tokens jedes Clients gelangen und was die Service-Accounts
 halten, steht in `realm/OVERVIEW.md`.
 
+{% if cookiecutter.ifdd_keycloak_lab_client_id -%}
 ### Sitzungen
 
 Der Realm hält eine untätige SSO-Sitzung 8 Stunden, weil der Hub von lab
@@ -174,6 +179,7 @@ auch später angelegte Kontextmuster, weil Notebooks in ifdd-be mit den
 Rechten der angemeldeten Person handeln. Er trägt die Audience von ifdd-be
 und den Gruppen-Claim.
 
+{% endif -%}
 ## Kontextmuster
 
 Das Backend gibt Domain-Kontexte (Namen mit Punkten wie
@@ -376,7 +382,7 @@ nicht nötig (der Client hat Full Scope) und schadet nicht.
 Getestet mit `kcadm.sh` aus der Distribution von Keycloak 26.8.0 gegen
 `http://localhost:8080` und einen aus dem vorigen Template importierten
 Realm; nicht getestet im Container.
-```
+```{% if cookiecutter.ifdd_keycloak_lab_client_id %}
 
 ### Den lab-Client ergänzen
 
@@ -432,3 +438,4 @@ hatte ein Token des Clients eine Refresh-Laufzeit von 8 h, die Audience des
 Backends, den Gruppen-Claim und ein nach dem Import angelegtes Kontextmuster.
 Nicht getestet im Container.
 ```
+{%- endif %}

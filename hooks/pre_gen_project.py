@@ -90,9 +90,11 @@ for key in ("ifdd_keycloak_realm", "ifdd_keycloak_admin_user", "ifdd_proxy_netwo
             "ifdd_keycloak_role_nodes_priv", "ifdd_keycloak_group_nodes_readers",
             "ifdd_keycloak_group_nodes_writers", "ifdd_keycloak_group_nodes_privileged",
             "ifdd_ts_api_oidc_client_id", "ifdd_keycloak_ts_ingest_client_id",
-            "ifdd_keycloak_lab_client_id", "ifdd_keycloak_lab_users_group",
-            "ifdd_keycloak_lab_admins_group"):
+            "ifdd_keycloak_lab_users_group", "ifdd_keycloak_lab_admins_group"):
     check(key, NAME, "letters, digits, '.', '_', '-' (no spaces, no quotes)")
+# Empty: the installation has no ifdd-lab; no client, no lab groups, no secret.
+if VALUES["ifdd_keycloak_lab_client_id"]:
+    check("ifdd_keycloak_lab_client_id", NAME, "letters, digits, '.', '_', '-' (no spaces, no quotes)")
 # Roles of ifdd-ts-api: a name with a dot would be read as a store pattern.
 for key in ("ifdd_ts_api_role_read", "ifdd_ts_api_role_write"):
     check(key, re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$"), "letters, digits, '_', '-' (no dot)")
@@ -162,6 +164,7 @@ clients = [VALUES[k] for k in ("ifdd_oidc_backend_client_id", "ifdd_keycloak_api
                                 "ifdd_ts_oidc_client_id", "ifdd_proxy_oidc_client_id",
                                 "ifdd_ts_api_oidc_client_id", "ifdd_keycloak_ts_ingest_client_id",
                                 "ifdd_keycloak_lab_client_id")]
+clients = [c for c in clients if c]
 if len(set(clients)) != len(clients):
     errors.append(f"client ids must differ: {clients}")
 roles = [VALUES[k] for k in ("ifdd_be_role_nodes_read", "ifdd_keycloak_role_nodes_write",

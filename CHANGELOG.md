@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- `ifdd_keycloak_lab_client_id` may be empty for an installation without
+  ifdd-lab: then the realm has no lab client and no lab groups, `.env` and the
+  compose files carry no lab secret, the realm page has no lab sections, and
+  the realm keeps idle SSO sessions for 30 min as before (8 h only with the
+  lab client). New fixture `no-lab`; the realm of every other fixture is
+  unchanged.
 - Client `ifdd_keycloak_lab_client_id` (default `ifdd-lab`) for the
   JupyterHub of `ifdd-de/lab`: confidential, code flow with PKCE S256,
   redirect `https://<ifdd_lab_host>/hub/oauth_callback`, the audience of
