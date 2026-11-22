@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [26.11.3] - 2026-11-21
 
 - CI: GitHub Actions pinned to commit SHAs (version as comment),
   `persist-credentials: false` on every checkout, top-level read-only
