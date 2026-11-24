@@ -40,8 +40,9 @@ Der Tag des Keycloak-Images wählt die Datei mit den eingebauten Client Scopes
 von Keycloak (`realm/ifdd_realm/builtin/keycloak-<tag>.json`); eine Version
 ohne solche Datei weist das Skript ab. Eine neue Keycloak-Version kommt daher
 mit einer neuen Template-Version, nicht durch Ändern des Tags allein. Das
-Template ist mit Keycloak 26.8.0 getestet; die PostgreSQL-Tests liefen mit
-Version 16.
+Template ist mit Keycloak 26.8.0 getestet, der Realm-Import und der
+Admin-API-Zugriff des User-Admin-Clients auch mit 26.8.2; die
+PostgreSQL-Tests liefen mit Version 16.
 
 ## CI der Instanz
 

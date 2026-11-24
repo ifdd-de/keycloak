@@ -391,6 +391,26 @@ def test_user_admin_client(instance):
     assert granted == [account]                  # no other service account may manage users
 
 
+def test_only_the_user_admin_client_gets_the_admin_api_scope(instance):
+    """Keycloak 26.8.2 accepts admin API tokens only with the scope kc-admin-api
+    (its audience): the user admin client has it by default, no other client."""
+    realm = realm_of(instance)[1]
+    assert "kc-admin-api" in {s["name"] for s in realm["clientScopes"]}
+    with_scope = [c["clientId"] for c in realm["clients"]
+                  if "kc-admin-api" in c.get("defaultClientScopes", []) + c.get("optionalClientScopes", [])]
+    assert with_scope == ["ifdd-user-admin"]
+    assert "kc-admin-api" not in realm["defaultDefaultClientScopes"] + realm["defaultOptionalClientScopes"]
+
+
+def test_no_admin_api_scope_before_keycloak_26_8_2(tmp_path):
+    """Keycloak 26.8.1 has no such scope: the realm must not refer to it."""
+    inst = render(tmp_path, ifdd_keycloak_image="quay.io/keycloak/keycloak:26.8.1")
+    realm = realm_of(inst)[1]
+    assert "kc-admin-api" not in json.dumps(realm)
+    client = next(c for c in realm["clients"] if c["clientId"] == "ifdd-user-admin")
+    assert "basic" in client["defaultClientScopes"]
+
+
 def test_ts_api_clients(instance):
     """ifdd-ts-api: a client that only carries roles; service accounts get them."""
     realm = realm_of(instance)[1]
