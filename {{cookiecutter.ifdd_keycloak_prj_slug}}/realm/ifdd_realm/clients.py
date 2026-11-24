@@ -17,6 +17,9 @@ from .scopes import GROUPS
 from .values import Values
 
 OFFLINE = "offline_access"
+# From Keycloak 26.8.2 on the admin API accepts only tokens with this built-in
+# scope (it adds the audience of the admin API); older versions lack it.
+ADMIN_API = "kc-admin-api"
 # The OAuth2 redirect page of the backend's Swagger UI (ifdd-be-core,
 # docs_ui.OAUTH2_REDIRECT_PATH): "Authorize" on <be_url>/docs returns there.
 BE_DOCS_REDIRECT = "/docs/oauth2-redirect"
@@ -31,6 +34,11 @@ SESSION = "client.session.idle.timeout"
 
 def optional_scopes(b: Builtin) -> list[str]:
     return [s for s in b.optional_scopes if s != OFFLINE]
+
+
+def admin_api_scopes(b: Builtin) -> list[str]:
+    """The scope a client needs for the admin API, if this Keycloak has it."""
+    return [ADMIN_API] if ADMIN_API in b.names else []
 
 
 def backend(v: Values, b: Builtin) -> Client:
@@ -98,7 +106,8 @@ def ct(v: Values, b: Builtin) -> Client:
 
 def user_admin(v: Values, b: Builtin) -> Client:
     """Scripts that create users of this realm and add them to groups:
-    client credentials only. Tokens carry its realm-management roles only."""
+    client credentials only. Tokens carry its realm-management roles only and,
+    from Keycloak 26.8.2 on, the scope kc-admin-api (audience of the admin API)."""
     return Client(
         client_id=v.useradmin_client,
         name="IFDD User Admin",
@@ -107,7 +116,7 @@ def user_admin(v: Values, b: Builtin) -> Client:
         service_account=True,
         full_scope_allowed=False,
         role_scope=roles.user_admin(),
-        default_scopes=b.default_scopes,
+        default_scopes=b.default_scopes + admin_api_scopes(b),
         optional_scopes=optional_scopes(b),
     )
 

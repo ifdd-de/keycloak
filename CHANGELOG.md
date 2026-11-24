@@ -1,5 +1,19 @@
 # Changelog
 
+## [26.11.11] - 2026-11-24
+
+- Version aligned across all ifdd-de repositories (26.11.11).
+- Keycloak 26.8.1 -> 26.8.2 (`ifdd_keycloak_image`; security fixes, among
+  them CVE-2026-19688). New built-in scopes file
+  `realm/ifdd_realm/builtin/keycloak-26.8.2.json`, a partial export of a fresh
+  realm of the 26.8.2 distribution: the scopes of 26.8.1 plus the new
+  `kc-admin-api`.
+- From 26.8.2 on the admin API accepts only tokens with the scope
+  `kc-admin-api` (its audience). The client of the user scripts
+  (`ifdd_keycloak_useradmin_client_id`) gets it as a default scope whenever
+  the Keycloak version has it; without it its tokens get 401. Documentation:
+  how to add the scope to that client in a realm imported before.
+
 ## [26.11.3] - 2026-11-21
 
 - CI: GitHub Actions pinned to commit SHAs (version as comment),

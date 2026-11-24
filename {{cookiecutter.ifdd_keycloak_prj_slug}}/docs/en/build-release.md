@@ -40,7 +40,8 @@ The tag of the Keycloak image selects the file of Keycloak's built-in client
 scopes (`realm/ifdd_realm/builtin/keycloak-<tag>.json`); the script refuses a
 version without such a file. A new Keycloak version therefore comes with a
 new template version, not by editing the tag alone. The template has been
-tested with Keycloak 26.8.0; the PostgreSQL tests used version 16.
+tested with Keycloak 26.8.0, the realm import and the admin API access of
+the user admin client also with 26.8.2; the PostgreSQL tests used version 16.
 
 ## CI of the instance
 

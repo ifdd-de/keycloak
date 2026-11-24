@@ -39,7 +39,7 @@ expect without repeating values.
 | Variable | Default | Meaning |
 |---|---|---|
 | `ifdd_keycloak_prj_name`, `ifdd_keycloak_prj_slug` | `IFDD Keycloak`, derived | name, also the title of the login pages (`display_name` in `realm/values.toml`); the slug names the directory and the Traefik router |
-| `ifdd_keycloak_image` | `quay.io/keycloak/keycloak:26.8.1` | Keycloak image; its tag selects the built-in scopes (`realm/ifdd_realm/builtin/keycloak-<tag>.json`) |
+| `ifdd_keycloak_image` | `quay.io/keycloak/keycloak:26.8.2` | Keycloak image; its tag selects the built-in scopes (`realm/ifdd_realm/builtin/keycloak-<tag>.json`) |
 | `ifdd_keycloak_postgres_image` | `postgres:18` | PostgreSQL image (Keycloak 26.8 supports 14 to 18) |
 | `ifdd_keycloak_backup_image` | `prodrigestivill/postgres-backup-local:18` | image of the backup service; its tag must start with the major version of the PostgreSQL image |
 | `ifdd_keycloak_backup_schedule` | `@daily` | when the backup service dumps the database: a cron expression (five fields, or six with seconds first) or a descriptor such as `@daily`, `@every 6h` |
@@ -92,7 +92,7 @@ realm/
     validate.py          consistency checks before writing
     overview.py          OVERVIEW.md: the realm as tables
     model.py             data classes and their Keycloak JSON form
-    builtin/keycloak-26.8.0.json   Keycloak's built-in client scopes
+    builtin/keycloak-<version>.json  Keycloak's built-in client scopes
   import/<realm>-realm.json        generated, committed, mounted into Keycloak
   OVERVIEW.md                      generated, committed: settings, roles, groups,
                                    scopes, clients, service accounts as tables
@@ -158,7 +158,11 @@ and secret from the instance's `.env`). Its service account gets, of
 Keycloak's own client `realm-management`, the role `manage-users` and
 nothing else; full scope is off, with a scope mapping for that role, so its
 tokens carry only this role. `validate.py` knows `manage-users` as the only
-built-in client role the realm may grant.
+built-in client role the realm may grant. From Keycloak 26.8.2 on the
+client also gets the built-in scope `kc-admin-api` as a default scope: the
+admin API accepts only tokens that carry it (and its audience), so without it
+the scripts get 401. A realm imported before needs the scope added by hand
+(instance documentation, realm, "Admin API scope of the user admin client").
 
 `manage-users` is broader than the script: whoever holds the secret can put
 any user into any group (including the wf admin group), change, disable and

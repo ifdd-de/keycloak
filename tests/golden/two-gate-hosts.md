@@ -65,7 +65,7 @@ Client roles (checked in `resource_access` by ifdd-be and ifdd-ui, and by ifdd-t
 | `ifdd_nodes_ro` | no | aud += ifdd |
 | `groups` | no | claim groups: group names |
 
-Plus the 15 built-in scopes of Keycloak (`ifdd_realm/builtin/`), defaults: `role_list`, `saml_organization`, `AuthnContextClassRef`, `profile`, `email`, `roles`, `web-origins`, `acr`, `basic`; optional: `address`, `phone`, `microprofile-jwt`, `organization`; not offered to any client: `offline_access`.
+Plus the 16 built-in scopes of Keycloak (`ifdd_realm/builtin/`), defaults: `role_list`, `saml_organization`, `AuthnContextClassRef`, `profile`, `email`, `roles`, `web-origins`, `acr`, `basic`; optional: `address`, `phone`, `microprofile-jwt`, `organization`; not offered to any client: `offline_access`.
 
 ## Clients
 
@@ -74,7 +74,7 @@ Plus the 15 built-in scopes of Keycloak (`ifdd_realm/builtin/`), defaults: `role
 | `ifdd` | – | public | authorization code (PKCE S256) | https://ui.example.org/authentication/callback<br>https://ui.example.org/authentication/silent-callback<br>https://be.example.org/docs/oauth2-redirect | `ifdd_nodes_ro` | client roles of `ifdd` in ID token, userinfo | no | 1800 s (30 min) |
 | `ifdd-api-script` | – | confidential, secret `IFDD_KEYCLOAK_API_CLIENT_SECRET` | client credentials | – | `ifdd_nodes_ro` | aud += ifdd-api-script, ifdd | yes | 1800 s (30 min) |
 | `ifdd-ct` | IFDD Core Tools | confidential, secret `IFDD_KEYCLOAK_CT_CLIENT_SECRET` | client credentials | – | `ifdd_nodes_ro` | – | no | 1800 s (30 min) |
-| `ifdd-user-admin` | IFDD User Admin | confidential, secret `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | client credentials | – | – | – | no | 1800 s (30 min) |
+| `ifdd-user-admin` | IFDD User Admin | confidential, secret `IFDD_KEYCLOAK_USERADMIN_CLIENT_SECRET` | client credentials | – | `kc-admin-api` | – | no | 1800 s (30 min) |
 | `ifdd-ts` | IFDD Time Series (Grafana) | confidential, secret `IFDD_KEYCLOAK_TS_CLIENT_SECRET` | authorization code (PKCE S256)<br>client credentials | https://ts.example.org/login/generic_oauth | `ifdd_nodes_ro` | – | no | 1800 s (30 min) |
 | `ifdd-proxy` | IFDD Proxy (oauth2-proxy) | confidential, secret `IFDD_KEYCLOAK_PROXY_CLIENT_SECRET` | authorization code (PKCE S256) | https://wf.example.org/oauth2/callback<br>https://ts.example.org/oauth2/callback | `groups` | aud += ifdd-proxy | yes | 1800 s (30 min) |
 | `ifdd-ts-api` | IFDD Time Series API | confidential, secret `IFDD_KEYCLOAK_TSAPI_CLIENT_SECRET` | – | – | – | – | yes | 1800 s (30 min) |

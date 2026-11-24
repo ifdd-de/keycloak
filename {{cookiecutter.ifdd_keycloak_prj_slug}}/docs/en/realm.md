@@ -315,6 +315,40 @@ Tested with `kcadm.sh` of the Keycloak 26.8.0 distribution against
 `KC_HOSTNAME` set.
 ```
 
+### Admin API scope of the user admin client (Keycloak 26.8.2)
+
+From Keycloak 26.8.2 on, the admin API accepts only tokens that carry the
+built-in scope `kc-admin-api`. On the upgrade Keycloak creates the scope in
+every realm and gives it to `admin-cli` and `security-admin-console`, but not
+to `{{ cookiecutter.ifdd_keycloak_useradmin_client_id }}`: its tokens then get
+401. A realm imported with this template version already has it; in a realm
+imported before, or after creating the client as above, add it as a default
+scope, as an admin of the master realm:
+
+```bash
+docker compose -f docker-compose-production.yml exec keycloak bash
+```
+
+```bash
+# inside the container
+REALM={{ cookiecutter.ifdd_keycloak_realm }} CLIENT={{ cookiecutter.ifdd_keycloak_useradmin_client_id }}
+kcadm() { /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm.config; }
+kcadm config credentials --server http://localhost:8080 --realm master --user <admin>  # asks for the password
+CID=$(kcadm get clients -r "$REALM" -q clientId="$CLIENT" --fields id --format csv --noquotes)
+SCOPE=$(kcadm get client-scopes -r "$REALM" --fields id,name --format csv --noquotes \
+  | awk -F, '$2 == "kc-admin-api" {print $1}')
+kcadm update "clients/$CID/default-client-scopes/$SCOPE" -r "$REALM"
+rm /tmp/kcadm.config
+exit
+```
+
+```{note}
+Tested with `kcadm.sh` of the Keycloak 26.8.2 distribution against
+`http://127.0.0.1:18180` and a realm imported by this template: without the
+scope the token of the client got 401 from the admin API, after these
+commands 200. Not tested: the upgrade of a running Keycloak from 26.8.1.
+```
+
 ### Adding the clients of ts-api
 
 A realm imported before ts-api existed lacks the clients
